@@ -1,0 +1,5 @@
+graft buildr
+graft src
+graft aufic
+graft test
+global-exclude *~ __pycache__/*
