@@ -40,10 +40,10 @@ from muslib_xmzt import incon
 from muslib_xmzt import scanlib
 from muslib_xmzt import taglib
 from muslib_xmzt import util
-
 from aufi_xmzt import aufiBase
 from aufi_xmzt import flacMetaBase
 from aufi_xmzt import id3v2Base
+import aufiC
 
 from pylib0_xmzt import loglib
 from pylib0_xmzt.optslib import Argr,PathArg,PathSubArg,noop
@@ -133,6 +133,9 @@ class Main:
         self.db = dblib.Db(self)
         self.scanr = scanlib.Scanr(self)
 
+        self.ignoreD = aufiBase.AufiE.ignoreDFromPres('Apev2', 'Id3v1', 'Id3v2', 'Lyrics3v2',
+                                                      'Mp3OtherChunkN')
+        
     #--------------------------------------------------------------------------------------------------------------------
     # meant to be top-level command-line funs
 
@@ -159,8 +162,15 @@ class Main:
     def parse(self, srcPath):
         root,ext = os.path.splitext(srcPath)
         clas = self.fileClasByExt[ext]
-        parser = clas.ParserClas(self, taglib.Tagr(self).cxtNew(None), noop)
-        parser.parsePath(srcPath, f'{srcPath}.aud', f'{srcPath}.naud')
+        parser = clas.ParserClas(self, taglib.Tagr(self).cxtNew(None))
+        try:
+            parser.parsePath(srcPath, f'{srcPath}.aud', f'{srcPath}.naud')
+        except aufiC.Exception as e:
+            if aufiBase.AufiE.isSys(e.args[0]):
+                return self.logr(f'[ERROR] {aufiBase.AufiE.byVal(e.args[0]).iden} {os.strerror(e.args[1])}')
+            else:
+                return self.logr(f'[ERROR] {aufiBase.AufiE.byVal(e.args[0]).iden}')
+            raise
 
     def scan(self, path):
         self.dbConnect()

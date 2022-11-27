@@ -10,12 +10,6 @@
 // parse
 //-----------------------------------------------------------------------------------------------------------------------
 
-typedef enum {
-	ChunkRepeat_0 = 0,
-	ChunkRepeat_Frame,
-	ChunkRepeat_Other
-} ChunkRepeat;
-
 int
 aufiMp3ParseSrc(AufiMp3ParseArgs *self)
 {
@@ -24,13 +18,13 @@ aufiMp3ParseSrc(AufiMp3ParseArgs *self)
 	uint8_t *gAud = self->p.aud + self->p.audHeadZ;
 	uint8_t *gNaud = self->p.naud + sizeof(AufiNaudHead);
 	XXH3_state_t gAudHashState;
+	const uint8_t *gChunkA;
 	const uint8_t *gChunkE;
 	size_t gChunkZ;
 	int gAufiE;
-	//todo	void *go;
+	void *gRepeatFinGo;
+	void *gRepeatFinRet;
 	
-	ChunkRepeat chunkRepeat;
-
 	AufiMpeg1AudFrameParseLocal frame;
 	AufiApev2ParseLocal apev2;
 	AufiId3v1ParseLocal id3v1;
@@ -38,8 +32,11 @@ aufiMp3ParseSrc(AufiMp3ParseArgs *self)
 	AufiLyrics3v2ParseLocal lyrics3v2;
 	
 	XXH3_128bits_reset(&gAudHashState);
-	gChunkZ = 0; // compiler warning
-	chunkRepeat = ChunkRepeat_0;
+	gChunkA = NULL; // suppress compiler warning
+	gChunkE = NULL; // suppress compiler warning
+	gChunkZ = 0; // suppress compiler warning
+	gRepeatFinGo = &&RepeatFinNoop;
+	gRepeatFinRet = NULL; // suppress compiler warning
 	aufiMpeg1AudFrameParseLocalInit(&frame);
 	aufiApev2ParseLocalInit(&apev2);
 	aufiId3v1ParseLocalInit(&id3v1);
@@ -48,8 +45,25 @@ aufiMp3ParseSrc(AufiMp3ParseArgs *self)
 	goto Chunk_0;
 
 	//------------------------------------------------------------------------------------------------------------------
-	// Other ChunkNext
+	// repeatFin coroutines
 
+ OtherRepeatFin:
+	self->mp3State->otherChunkN++;
+	self->mp3State->otherByteN += gSrc - gChunkA;
+	AufiCb(self->mp3Cbs->otherChunk, gChunkA - self->p.src, gSrc - gChunkA, gChunkA, gSrc);
+	goto *gRepeatFinRet;
+	
+ FrameRepeatFin:
+	self->mp3State->frameChunkN++;
+	AufiCb(self->mp3Cbs->frameChunk, gChunkA - self->p.src, gSrc - gChunkA);
+	goto *gRepeatFinRet;
+
+ RepeatFinNoop:
+	goto *gRepeatFinRet;
+	
+	//------------------------------------------------------------------------------------------------------------------
+	// direct return points from parser
+	
  OtherOrEof:
 	if(gSrc == gSrcE) goto Eof;
  FrameFinChunkInvalid:
@@ -58,41 +72,46 @@ aufiMp3ParseSrc(AufiMp3ParseArgs *self)
  Id3v2FinChunkInvalid:
  Lyrics3v2FinChunkInvalid:
  Other:
-	gChunkE = gSrc + (gChunkZ = 1);
-	self->mp3State->otherByteN += 1;
-	AufiCb(self->mp3Cbs->otherByte, gSrc - self->p.src, gSrc[0]);
-	if(ChunkRepeat_Other == chunkRepeat) goto ChunkNextNaudRepeat1;
-	chunkRepeat = ChunkRepeat_Other;
-	self->mp3State->otherChunkN++;
-	AufiCb(self->mp3Cbs->otherChunk, gSrc - self->p.src);
-	goto ChunkNextNaudRepeat0;
-
+	if(&&OtherRepeatFin != gRepeatFinGo) {
+		gRepeatFinRet = &&OtherRepeatFinRet;
+		goto *gRepeatFinGo;
+	OtherRepeatFinRet:
+		if((gAufiE = aufiChunkrAdd(self->p.chunkr, AufiChunkType_Naud, gSrc - self->p.src, gNaud - self->p.naud)))
+			goto ChunkrAddE;
+		gChunkA = gSrc;
+		gRepeatFinGo = &&OtherRepeatFin;
+	}
+	*gNaud++ = *gSrc++;
+	goto Chunk_0;
+	
  Apev2FinChunkOk:
  Id3v1FinChunkOk:
  Id3v2FinChunkOk:
  Lyrics3v2FinChunkOk:
-	chunkRepeat = ChunkRepeat_0;
- ChunkNextNaudRepeat0:
+	gRepeatFinRet = &&TagFinRepeatFinRet;
+	goto *gRepeatFinGo;
+ TagFinRepeatFinRet:
 	if((gAufiE = aufiChunkrAdd(self->p.chunkr, AufiChunkType_Naud, gSrc - self->p.src, gNaud - self->p.naud)))
 		goto ChunkrAddE;
- ChunkNextNaudRepeat1:
+	gRepeatFinGo = &&RepeatFinNoop;
 	memcpy(gNaud, gSrc, gChunkZ);
 	gNaud += gChunkZ;
 	goto ChunkNext;
 
  FrameFinChunkOk:
-	if(ChunkRepeat_Frame == chunkRepeat) goto ChunkNextAudRepeat1;
-	chunkRepeat = ChunkRepeat_Frame;
-	self->mp3State->frameChunkN++;
-	AufiCb(self->mp3Cbs->frameChunk, gSrc - self->p.src);
-	goto ChunkNextAudRepeat0;
- ChunkNextAudRepeat0:
-	if((gAufiE = aufiChunkrAdd(self->p.chunkr, AufiChunkType_Aud, gSrc - self->p.src, gAud - self->p.aud)))
-		goto ChunkrAddE;
- ChunkNextAudRepeat1:
+	if(&&FrameRepeatFin != gRepeatFinGo) {
+		gRepeatFinRet = &&FrameFinRepeatFinRet;
+		goto *gRepeatFinGo;
+	FrameFinRepeatFinRet:
+		if((gAufiE = aufiChunkrAdd(self->p.chunkr, AufiChunkType_Aud, gSrc - self->p.src, gAud - self->p.aud)))
+			goto ChunkrAddE;
+		gChunkA = gSrc;
+		gRepeatFinGo = &&FrameRepeatFin;
+	}
 	memcpy(gAud, gSrc, gChunkZ);
 	gAud += gChunkZ;
 	XXH3_128bits_update(&gAudHashState, gSrc, gChunkZ);
+	// fall through ChunkNext
  ChunkNext:
 	gSrc = gChunkE;
  Chunk_0:
@@ -158,6 +177,9 @@ aufiMp3ParseSrc(AufiMp3ParseArgs *self)
 	// Eof
 
  Eof:
+	gRepeatFinRet = &&EofRepeatFinRet;
+	goto *gRepeatFinGo;
+ EofRepeatFinRet:
 	AufiCb(self->mp3Cbs->eof, gSrc - self->p.src);
 	if((gAufiE = aufiChunkrAdd(self->p.chunkr, AufiChunkType_Fin, gSrc - self->p.src, 0))) goto ChunkrAddE;
 	self->p.chunkr->audZ = gAud - self->p.aud;

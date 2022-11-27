@@ -59,16 +59,14 @@ class Logc(util.Logc):
 # Parser
 #--------------------------------------------------------------------------------------------------------------------
 
-class Parser:
+class Parser(util.ParserBase):
     def __init__(self, main, tagCxt):
-        self.main = main
+        super().__init__(main, main.logcFlacMeta)
         self.tagCxt = tagCxt
-        self.logc = main.logcFlacMeta
 
         self.state = aufiC.FlacMetaParseState()
 
         # c callbacks
-        self.parseE = self.logc.parseE
         self.head = self.logc.head
         self.streaminfo = self.logc.streaminfo
         self.application = self.logc.application

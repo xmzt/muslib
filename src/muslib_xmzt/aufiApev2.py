@@ -30,14 +30,12 @@ class Logc(util.Logc):
 # Parser
 #--------------------------------------------------------------------------------------------------------------------
 
-class Parser:
+class Parser(util.ParserBase):
     def __init__(self, main, tagCxt):
-        self.main = main
+        super().__init__(main, main.logcApev2)
         self.tagCxt = tagCxt
-        self.logc = main.logcApev2
 
         # c callbacks
-        self.parseE = self.logc.parseE
         self.head = self.logc.head
         self.foot = self.logc.foot
         

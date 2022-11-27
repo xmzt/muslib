@@ -205,13 +205,11 @@ class Logc(util.Logc):
 # Parser
 #------------------------------------------------------------------------------------------------------------------------
 
-class Parser:
+class Parser(util.ParserBase):
     def __init__(self, main, tagCxt):
-        self.main = main
+        super().__init__(main, main.logcMp4)
         self.tagCxt = tagCxt
-        self.logc = main.logcMp4
 
-        self.parseE = self.logc.parseE
         self.otherByte = self.logc.otherByte
         self.otherChunk = self.logc.otherChunk
 

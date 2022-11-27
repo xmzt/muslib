@@ -319,6 +319,10 @@ class Db:
                 self.insertArtist(cur, artist)
                 cur.execute('INSERT INTO trackArtist(trackPk,artistPk) VALUES(?,?)', [ track.pk, artist.pk ])
 
+        for bad in folder.badV:
+            bad.folderPk = folder.pk
+            cur.execute('INSERT INTO bad VALUES(?,?)', [ bad.folderPk, bad.code ])
+            
     def insertArtist(self, cur, artist):
         if None is artist.pk:
             for pk, in cur.execute('SELECT pk FROM artist WHERE name=?', [ artist.name ]):

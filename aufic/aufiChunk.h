@@ -50,6 +50,12 @@ aufiChunkrChunksCA(AufiChunkr *self)
 	return (uint8_t*)self->chunksC - (uint8_t*)self->chunksA;
 }
 
+inline static AufiChunk *
+aufiChunkrLast(AufiChunkr *self)
+{
+	return self->chunksC - 1;
+}
+
 int
 aufiChunkrInit(AufiChunkr *self, size_t chunksNInit, int *eSys);
 
@@ -61,6 +67,7 @@ aufiChunkrChunksGrow(AufiChunkr *self, int *eSys);
 
 int
 aufiChunkrAdd(AufiChunkr *self, size_t type, size_t srcPos, size_t dstPos);
+
 
 int
 aufiChunkrWriteNaudHeadFdName(AufiChunkr *self,

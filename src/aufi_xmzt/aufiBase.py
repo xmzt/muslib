@@ -11,6 +11,7 @@ def AufiEMeta(name, bases, namespace, **kwds):
     cls.codeCInit('int', 'AufiE')
     for i,iden in enumerate((
             'Cb',
+            'AudNimp',
             'ChunkInvalid',
             'ChunksFull',
             'FolderNameInvalid',
@@ -34,11 +35,11 @@ def AufiEMeta(name, bases, namespace, **kwds):
             'Apev2ItemValIncomplete',
             'Apev2MagicInvalid',
             
-            'FlacFrameChunkNInvalid',
+            'FlacFrameChunkNNe1',
             'FlacMagicAudHeadTooSmall',
-            'FlacOtherChunkNInvalid',
+            'FlacOtherChunkN',
             'FlacPaddingMisfit',
-            'FlacStreaminfosNInvalid',
+            'FlacStreaminfosNNe1',
 
             'FlacFrame',
             'FlacFrameBlockZInvalid',
@@ -110,8 +111,8 @@ def AufiEMeta(name, bases, namespace, **kwds):
             'Lyrics3v2Incomplete',
             'Lyrics3v2MagicInvalid',
 
-            'Mp3OtherChunkNUnexpected',
-            'Mp3FrameChunkNUnexpected',
+            'Mp3OtherChunkN',
+            'Mp3FrameChunkNNe1',
             'Mp3FrequencyInconsistent',
 
             'Mp4BoxHeadIncomplete',
@@ -149,3 +150,15 @@ class AufiE(Denum, metaclass=AufiEMeta):
     @classmethod
     def isSys(cls, x):
         return cls._SysBeg >= x
+
+    @classmethod
+    def ignoreDFromPres(cls, *pres):
+        ignoreD = {}
+        for item in cls.ItemV:
+            ignore = 0
+            for pre in pres: 
+                if item.iden.startswith(pre):
+                    ignore = 1
+                    break
+            ignoreD[item.val] = ignore
+        return ignoreD

@@ -19,9 +19,8 @@
 //-----------------------------------------------------------------------------------------------------------------------
 
 //$!
-typedef int AufiMp3Cb_otherByte(void *arg, size_t pos, uint8_t byte);
-typedef int AufiMp3Cb_otherChunk(void *arg, size_t pos);
-typedef int AufiMp3Cb_frameChunk(void *arg, size_t pos);
+typedef int AufiMp3Cb_otherChunk(void *arg, size_t pos, size_t size, const uint8_t *byts, const uint8_t *bytsE);
+typedef int AufiMp3Cb_frameChunk(void *arg, size_t pos, size_t size);
 typedef int AufiMp3Cb_eof(void *arg, size_t pos);
 
 typedef struct {

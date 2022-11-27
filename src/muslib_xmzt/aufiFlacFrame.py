@@ -124,15 +124,13 @@ class Logc(util.Logc):
 # Parser
 #--------------------------------------------------------------------------------------------------------------------
 
-class Parser:
+class Parser(util.ParserBase):
     def __init__(self, main):
-        self.main = main
-        self.logc = main.logcFlacFrame
+        super().__init__(main, main.logcFlacFrame)
 
         self.state = aufiC.FlacFrameParseState()
 
         # c callbacks
-        self.parseE = self.logc.parseE
         if main.parseDbg:
             self.frame = self.logc.frame
             self.head = self.logc.head
@@ -167,4 +165,3 @@ class Parser:
             self.partitionSampleZ = self.logc.partitionSampleZ
             self.partitionVal = self.logc.partitionVal
             self.foot = self.logc.foot
-            

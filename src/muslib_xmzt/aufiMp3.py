@@ -22,14 +22,14 @@ class Logc(util.Logc):
     #--------------------------------------------------------------------------------------------------------------------
     # c callbacks
 
-    def otherByte(self, pos, ch):
-        return self.wrap(f'<{pos}> otherByte {ch!r}')
-    
-    def otherChunk(self, pos):
-        return self.wrap(f'<{pos}> otherChunk')
-    
-    def frameChunk(self, pos):
-        return self.wrap(f'<{pos}> frameChunk')
+    def parseE(self, pos, e):
+        return self.main.logr(f'[ERROR mp3] <{pos}> {aufiBase.AufiE.des(e)}')
+
+    def otherChunk(self, pos, size, byts):
+        return self.wrap(f'<{pos}> otherChunk {size=}').inMlHex(byts)
+
+    def frameChunk(self, pos, size):
+        return self.wrap(f'<{pos}> frameChunk {size=}')
     
     def eof(self, pos):
         return self.wrap(f'<{pos}> eof')
@@ -66,21 +66,17 @@ class Logc(util.Logc):
 #--------------------------------------------------------------------------------------------------------------------
 
 class Parser(util.ParserBase):
-    def __init__(self, main, tagCxt, badAddUp):
-        super().__init__(main, tagCxt, badAddUp)
-        self.logc = main.logcMp3
+    def __init__(self, main, tagCxt):
+        super().__init__(main, main.logcMp3)
         
         self.state = aufiC.Mp3ParseState()
-        self.frame = aufiMpeg1AudFrame.Parser(self.main) 
-        self.apev2 = aufiApev2.Parser(self.main, self.tagCxt)
-        self.id3v1 = aufiId3v1.Parser(self.main, self.tagCxt)
-        self.id3v2 = aufiId3v2.Parser(self.main, self.tagCxt)
-        self.lyrics3v2 = aufiLyrics3v2.Parser(self.main, self.tagCxt)
+        self.frame = aufiMpeg1AudFrame.Parser(main) 
+        self.apev2 = aufiApev2.Parser(main, tagCxt)
+        self.id3v1 = aufiId3v1.Parser(main, tagCxt)
+        self.id3v2 = aufiId3v2.Parser(main, tagCxt)
+        self.lyrics3v2 = aufiLyrics3v2.Parser(main, tagCxt)
 
-        self.frame.parseE = self.parseEWrap(self.frame.parseE)
-        
         # c callbacks
-        self.otherByte = self.logc.otherByte
         self.otherChunk = self.logc.otherChunk
         self.frameChunk = self.logc.frameChunk
         self.eof = self.logc.eof
@@ -117,21 +113,21 @@ class Parser(util.ParserBase):
         self.logc.dump(self)
 
         if self.state.otherChunkN:
-            self.badAdd(aufiBase.AufiE.Mp3OtherChunkNUnexpected)
+            self.parseE(None, aufiBase.AufiE.Mp3OtherChunkN.val)
         if 1 != self.state.frameChunkN:
-            self.badAdd(aufiBase.AufiE.Mp3FrameChunkNUnexpected)
+            self.parseE(None, aufiBase.AufiE.Mp3FrameChunkNNe1.val)
         if None is self.frequency:
-            self.badAdd(aufiBase.AufiE.Mp3FrequencyInconsistent)
+            self.parseE(None, aufiBase.AufiE.Mp3FrequencyInconsistent.val)
 
         self.main.openRRRCb(srcPath, audPath, naudPath,
                             lambda srcFd,audFd,naudFd: aufiC.naudVerifyFd(srcFd, audFd, naudFd, srcPath))
-        self.logc.status('bad' if self.bad else 'ok')
+        self.logc.status('bad' if self.isbad else 'ok')
 
     #--------------------------------------------------------------------------------------------------------------------
     # tagUpdate
 
     def tagUpdate(self, path):
-        tag = self.id3v2.tagBytes(self.tagCxt, self.main.mp3AudHeadSize)
+        tag = self.id3v2.tagBytes(self.id3v2.tagCxt, self.main.mp3AudHeadSize)
         self.main.pwrite(path,tag, 0)
         self.logc.tagUpdate(tag)
 

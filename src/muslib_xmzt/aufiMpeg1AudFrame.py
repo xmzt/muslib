@@ -26,13 +26,13 @@ class Logc(util.Logc):
 # Parser
 #--------------------------------------------------------------------------------------------------------------------
 
-class Parser:
+class Parser(util.ParserBase):
     def __init__(self, main):
-        self.main = main
+        super().__init__(main, main.logcMpeg1AudFrame)
+
         self.logc = main.logcMpeg1AudFrame
         self.state = aufiC.Mpeg1AudFrameParseState()
 
         # c callbacks
-        self.parseE = self.logc.parseE
         if main.parseDbg:
             self.valid = self.logc.valid

@@ -60,10 +60,11 @@ class Scanr:
         # process folder. 
         self.folderN += 1
         folder = Folder(None, de.name, os.path.realpath(de.path), time.time(), 0)
+        folder.scanr = self
         folder.de = de
         folder.okCbV = []
         folder.badSet = set()
-        folder.badV = []
+        folder.isbad = 0
 
         # stage files
         folder.stageAudPath = self.main.stageAudPath.join(de.name) 
@@ -77,24 +78,26 @@ class Scanr:
         try:
             self.folderGoStage(folder)
         except aufiBase.AufiEException as e:
+            self.main.logr(f'[ERROR] {aufiBase.AufiE.byVal(e.args[0]).iden}')
             folder.badAdd(e.args[0])
         except:
             excinfo = sys.exc_info()
             self.logc.otherException(*excinfo)
-            folder.badAdd(aufiBase.AufiE.OtherException)
+            folder.badAdd(aufiBase.AufiE.OtherException.val)
 
-        if not folder.badV:
+        folder.badV = [dblib.BadRow(None, x) for x in sorted(folder.badSet)]
+        for bad in folder.badV:
+            self.folderNameVByBadCode.setdefault(bad.code, []).append(folder.name)
+        if not folder.isbad:
+            self.main.db.wrap(self.main.db.insertFolderOk, folder)
             self.folderOkN += 1
             self.logc.folderOkDump(folder)
             # remove all other versions of folder
             self.main.db.wrap(self.main.db.deleteFolderByNameNpk, folder.name, folder.pk)
         else:
             # insert bad folder
-            folder.isbad = 1
             self.main.db.wrap(self.main.db.insertFolderBad, folder)
             self.logc.folderBadDump(folder)
-            for bad in folder.badV:
-                self.folderNameVByBadCode.setdefault(bad.code, []).append(folder.name)
             # cleanup purgatory
             for okCb in reversed(folder.okCbV):
                 okCbv()
@@ -102,7 +105,7 @@ class Scanr:
     def folderGoStage(self, folder):
         # metadata from folder filename
         if None is (m := FolderNameRe.search(folder.de.name)):
-            raise aufiBase.AufiEException(aufiBase.AufiE.FolderNameInvalid)
+            raise aufiBase.AufiEException(aufiBase.AufiE.FolderNameInvalid.val)
         artistS,yearS,albumS = m.group(1), m.group(2), m.group(3)
         album = folder.album = dblib.AlbumRow(None, None, yearS, albumS)
         album.artistV = [ dblib.ArtistRow(None, artistS) ]
@@ -116,14 +119,14 @@ class Scanr:
                     file = DirFile(folder, de)
                 else:
                     root,ext = os.path.splitext(de.name)
-                    file = self.main.fileClasByExt.get(ext, UnknownFile)(self, folder, de, root, ext)
+                    file = self.main.fileClasByExt.get(ext, UnknownFile)(folder, de, root, ext)
                 try:
-                    file.scanrGo(self, folder)
+                    file.scanrGo()
                 except aufiC.Exception as e:
                     self.logc.aufiCException(*e.args)
-                    self.badAdd(e.args[0])
+                    file.parser.parseE(None, e.args[0])
 
-        if folder.badV:
+        if folder.isbad:
             return
                     
         # update tags and rename files
@@ -146,12 +149,12 @@ class Scanr:
 
             with self.logc.file(name):
                 cxt.file.parser.tagUpdate(cxt.file.audPath)
-                cxt.file.stageRename(self, folder, name)
+                cxt.file.stageRename(name)
 
-        if folder.badV:
+        if folder.isbad:
             return
 
-        # register folder in db and fs
+        # register folder in fs
         dstAudPath = self.main.dstAudPath.join(folder.de.name)
         dstNaudPath = self.main.dstNaudPath.join(folder.de.name)
 
@@ -168,7 +171,6 @@ class Scanr:
         # move data into dst
         self.main.fsGo(shutil.move, folder.stageAudPath, dstAudPath)
         self.main.fsGo(shutil.move, folder.stageNaudPath, dstNaudPath)
-        self.main.db.wrap(self.main.db.insertFolderOk, folder)
 
     def dump(self):
         with self.main.logr(f'{self.__class__.__name__}') as logr:
@@ -182,16 +184,6 @@ class Scanr:
                         for name in nameV:
                             logr(f'{name!r}')
             logr(f'folderN={self.folderN} okN={self.folderOkN} badN={self.folderN - self.folderOkN}')
-        
-#------------------------------------------------------------------------------------------------------------------------
-# Folder
-#------------------------------------------------------------------------------------------------------------------------
-
-class Folder(dblib.FolderRow):
-    def badAdd(self, code):
-        if code not in self.badSet:
-            self.badSet.add(code)
-            self.badV.append(dblib.BadRow(None, code))
         
 #------------------------------------------------------------------------------------------------------------------------
 # ScanrLogc
@@ -240,63 +232,81 @@ class ScanrLogc(util.Logc):
         return self.wrap(f'update {path!r} tagZ={len(tag)}')
 
 #------------------------------------------------------------------------------------------------------------------------
+# Folder
+#------------------------------------------------------------------------------------------------------------------------
+
+class Folder(dblib.FolderRow):
+    def badAdd(self, aufiE):
+        self.badSet.add(aufiE)
+        self.isbad |= (isbad := not self.scanr.main.ignoreD[aufiE])
+        return isbad
+        
+#------------------------------------------------------------------------------------------------------------------------
 # File and derived classes
 #------------------------------------------------------------------------------------------------------------------------
 
 class File:
-    def __init__(self, scanr, folder, de):
+    def __init__(self, folder, de):
+        self.folder = folder
         self.de = de
-        util.ndictInc(scanr.clasND, self.__class__.__name__)
+        util.ndictInc(folder.scanr.clasND, self.__class__.__name__)
 
 class DirFile(File):
-    def scanrGo(self, scanr, folder):
-        scanr.main.fsGo(shutil.copytree, self.de.path, os.path.join(folder.stageNaudPath, self.de.name))
+    def scanrGo(self):
+        self.folder.scanr.main.fsGo(shutil.copytree, self.de.path, os.path.join(self.folder.stageNaudPath, self.de.name))
         
 class RegFile(File):
     AudNameReduce = 0
 
-    def __init__(self, scanr, folder, de, nameRoot, nameExt):
-        super().__init__(scanr, folder, de)
-        util.ndictInc(scanr.extND, nameExt)
+    def __init__(self, folder, de, nameRoot, nameExt):
+        super().__init__(folder, de)
+        util.ndictInc(folder.scanr.extND, nameExt)
         
 class OtherFile(RegFile):
-    def scanrGo(self, scanr, folder):
-        scanr.main.fsGo(shutil.copy, self.de.path, os.path.join(folder.stageNaudPath, self.de.name))
+    def scanrGo(self):
+        self.folder.scanr.main.fsGo(shutil.copy, self.de.path, os.path.join(self.folder.stageNaudPath, self.de.name))
 
 class ImageFile(OtherFile): pass
 
 class UnknownFile(OtherFile):
-    def __init__(self, scanr, folder, de, nameRoot, nameExt):
-        super().__init__(scanr, folder, de, nameRoot, nameExt)
-        util.ndictInc(scanr.unknownND, nameExt)
+    def __init__(self, folder, de, nameRoot, nameExt):
+        super().__init__(folder, de, nameRoot, nameExt)
+        util.ndictInc(folder.scanr.unknownND, nameExt)
 
 class AudFile(RegFile):
     AudNameReduce = 1
 
-    def __init__(self, scanr, folder, de, nameRoot, nameExt):
-        super().__init__(scanr, folder, de, nameRoot, nameExt)
-        self.nameRoot,self.nameTail = scanr.main.audNameRootTail(nameRoot, nameExt)
-        util.ndictInc(scanr.audTailND, self.nameTail)
-        util.ndictInc(scanr.clasND, 'AudFile')
+    def __init__(self, folder, de, nameRoot, nameExt):
+        super().__init__(folder, de, nameRoot, nameExt)
+        self.nameRoot,self.nameTail = folder.scanr.main.audNameRootTail(nameRoot, nameExt)
+        util.ndictInc(folder.scanr.audTailND, self.nameTail)
+        util.ndictInc(folder.scanr.clasND, 'AudFile')
         
-    def stageRename(self, scanr, folder, name):
+    def stageRename(self, name):
         if name != self.de.name:
             audPath = os.path.join(os.path.dirname(self.audPath), name)
-            scanr.main.fsGo(os.rename, self.audPath, audPath)
+            self.folder.scanr.main.fsGo(os.rename, self.audPath, audPath)
             self.audPath = audPath
             naudPath = os.path.join(os.path.dirname(self.naudPath), f'{name}.naud')
-            scanr.main.fsGo(os.rename, self.naudPath, naudPath)
+            self.folder.scanr.main.fsGo(os.rename, self.naudPath, naudPath)
             self.naudPath = naudPath
 
 class AudImpFile(AudFile):
-    def scanrGo(self, scanr, folder): 
-        tagCxt = folder.tagr.cxtNew(self)
+    def scanrGo(self):
+        tagCxt = self.folder.tagr.cxtNew(self)
         tagCxt.addFilename(self.nameRoot)
-        self.audPath = os.path.join(folder.stageAudPath, self.de.name)
-        self.naudPath = os.path.join(folder.stageNaudPath, f'{self.de.name}.naud')
-        self.parser = self.ParserClas(scanr.main, tagCxt, folder.badAdd)
+        self.audPath = os.path.join(self.folder.stageAudPath, self.de.name)
+        self.naudPath = os.path.join(self.folder.stageNaudPath, f'{self.de.name}.naud')
+        self.badSet = set()
+        self.parser = self.ParserClas(self.folder.scanr.main, tagCxt)
+        self.parser.badAdd = self.badAdd
         self.parser.parsePath(self.de.path, self.audPath, self.naudPath)
 
+    def badAdd(self, aufiE):
+        self.badSet.add(aufiE)
+        self.parser.isbad |= self.folder.badAdd(aufiE)
+        
+        
 class AudNimpFile(AudFile):
-    def scanrGo(self, scanr, folder):
-        raise util.FolderBadException(util.FolderE.AudNimp, None)
+    def scanrGo(self):
+        raise aufiBase.AufiEException(aufiBase.AufiE.AudNimp)

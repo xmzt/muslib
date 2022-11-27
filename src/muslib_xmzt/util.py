@@ -41,22 +41,17 @@ def ndictDump(dict, logr, pre):
 # ParserBase
 
 class ParserBase:
-    def __init__(self, main, tagCxt, badAddUp):
+    def __init__(self, main, logc):
         self.main = main
-        self.tagCxt = tagCxt
-        self.badAddUp = badAddUp
-        self.bad = 0
+        self.logc = logc
+        self.isbad = 0
         
-    def badAdd(self, code):
-        self.badAddUp(code)
-        self.bad = 1
-        
-    def parseEWrap(self, up):
-        def parseE(pos, e):
-            up(pos, e)
-            self.badAddUp(e)
-            self.bad = 1
-        return parseE
+    def parseE(self, pos, e):
+        self.logc.parseE(pos, e)
+        self.badAdd(e)
+
+    def badAdd(self, aufiE):
+        pass
         
 #--------------------------------------------------------------------------------------------------------------------
 # dump

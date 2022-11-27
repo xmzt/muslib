@@ -59,13 +59,11 @@ class Logc(util.Logc):
 # Parser
 #--------------------------------------------------------------------------------------------------------------------
 
-class Parser:
+class Parser(util.ParserBase):
     def __init__(self, main, tagCxt):
-        self.main = main
+        super().__init__(main, main.logcId3v1)
         self.tagCxt = tagCxt
-        self.logc = main.logcId3v1
 
-        self.parseE = self.logc.parseE
         self.head = self.logc.head
         self.headEnhanced = self.logc.headEnhanced
         self.genreno = self.logc.genreno

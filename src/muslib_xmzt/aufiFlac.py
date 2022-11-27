@@ -28,9 +28,6 @@ class Logc(util.Logc):
     def magic(self, pos):
         return self.wrap(f'<{pos}> magic')
     
-    def otherByte(self, pos, ch):
-        return self.wrap(f'<{pos}> otherByte {ch!r}')
-    
     def otherChunk(self, pos):
         return self.wrap(f'<{pos}> otherChunk')
     
@@ -78,24 +75,19 @@ class Logc(util.Logc):
 #------------------------------------------------------------------------------------------------------------------------
 
 class Parser(util.ParserBase):
-    def __init__(self, main, tagCxt, badAddUp):
-        super().__init__(main, tagCxt, badAddUp)
-        self.logc = main.logcFlac
+    def __init__(self, main, tagCxt):
+        super().__init__(main, main.logcFlac)
 
         self.state = aufiC.FlacParseState()
-        self.frame = aufiFlacFrame.Parser(self.main)
-        self.meta = aufiFlacMeta.Parser(self.main, self.tagCxt)
-        self.apev2 = aufiApev2.Parser(self.main, self.tagCxt)
-        self.id3v1 = aufiId3v1.Parser(self.main, self.tagCxt)
-        self.id3v2 = aufiId3v2.Parser(self.main, self.tagCxt)
-        self.lyrics3v2 = aufiLyrics3v2.Parser(self.main, self.tagCxt)
+        self.frame = aufiFlacFrame.Parser(main)
+        self.meta = aufiFlacMeta.Parser(main, tagCxt)
+        self.apev2 = aufiApev2.Parser(main, tagCxt)
+        self.id3v1 = aufiId3v1.Parser(main, tagCxt)
+        self.id3v2 = aufiId3v2.Parser(main, tagCxt)
+        self.lyrics3v2 = aufiLyrics3v2.Parser(main, tagCxt)
 
-        self.frame.parseE = self.parseEWrap(self.frame.parseE)
-        self.meta.parseE = self.parseEWrap(self.meta.parseE)
-        
         # c callbacks
         self.magic = self.logc.magic
-        self.otherByte = self.logc.otherByte
         self.otherChunk = self.logc.otherChunk
         self.frameChunk = self.logc.frameChunk
         self.eof = self.logc.eof
@@ -131,21 +123,21 @@ class Parser(util.ParserBase):
         self.logc.dump(self)
 
         if 1 != self.meta.state.streaminfosN:
-            self.badAdd(aufiBase.AufiE.FlacStreaminfosNInvalid)
+            self.parseE(None, aufiBase.AufiE.FlacStreaminfosNNe1.val)
         if self.state.otherChunkN:
-            self.badAdd(aufiBase.AufiE.FlacOtherChunkNInvalid)
+            self.parseE(None, aufiBase.AufiE.FlacOtherChunkN.val)
         if 1 != self.state.frameChunkN:
-            self.badAdd(aufiBase.AufiE.FlacFrameChunkNInvalid)
+            self.parseE(None, aufiBase.AufiE.FlacFrameChunkNNe1.val)
 
         self.main.openRRRCb(srcPath, audPath, naudPath,
                             lambda srcFd,audFd,naudFd: aufiC.naudVerifyFd(srcFd, audFd, naudFd, srcPath))
-        self.logc.status('bad' if self.bad else 'ok')
+        self.logc.status('bad' if self.isbad else 'ok')
 
     #--------------------------------------------------------------------------------------------------------------------
     # tagUpdate
 
     def tagUpdate(self, path):
-        tag = self.meta.tagBytes(self.tagCxt, self.state.userOffE - self.state.userOffA)
+        tag = self.meta.tagBytes(self.meta.tagCxt, self.state.userOffE - self.state.userOffA)
         self.main.pwrite(path, tag, self.state.userOffA)
         self.logc.tagUpdate(tag)
 
