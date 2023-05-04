@@ -2,9 +2,10 @@
 #define AUFIAPEV2_H
 
 //$! from aufi_xmzt import apev2Base
+//$! import butil
 
-#include "aufiParse.h"
 #include "bitutil.h"
+#include "aufiParse.h"
 
 //-----------------------------------------------------------------------------------------------------------------------
 // enums
@@ -39,8 +40,21 @@ typedef int AufiApev2Cb_foot(void *arg,
 							 unsigned int size,
 							 unsigned int itemsN,
 							 unsigned int flags);
-//$! cbV,parseState = aufiParse_h.env.cbVParseStateFromFrag(_frag)
-//$! aufiParse_h.env.parseCbsStruct(_acc, (parseCbsIden := 'AufiApev2ParseCbs'), cbV)
+//$! _bi.buildr.fragr.goStart(_bi.scope, _frag)
+//$! aufiParse_h.env.parseCbsStruct(_acc, (parseCbsIden := 'AufiApev2ParseCbs'), (cbV := butil.cbVFromScope(_bi.scope)))
+
+//-----------------------------------------------------------------------------------------------------------------------
+// Parse
+//-----------------------------------------------------------------------------------------------------------------------
+
+typedef struct {
+	AufiApev2ParseCbs cbs;
+} AufiApev2Parse;
+//$! _bi.buildr.fragr.goStart(_bi.scope, _frag)
+
+inline static void aufiApev2ParseInit(AufiApev2Parse *self) {
+	//self->cbs 
+}
 
 //-----------------------------------------------------------------------------------------------------------------------
 // ParseLocal
@@ -66,17 +80,5 @@ typedef struct {
 
 inline static void
 aufiApev2ParseLocalInit(AufiApev2ParseLocal *local) {}
-
-//-----------------------------------------------------------------------------------------------------------------------
-// Parse
-//-----------------------------------------------------------------------------------------------------------------------
-
-typedef struct {
-	AufiParseArgs p;
-	AufiApev2ParseCbs *apev2Cbs;
-} AufiApev2ParseArgs;
-
-int
-aufiApev2Parse(AufiApev2ParseArgs *self);
 
 #endif

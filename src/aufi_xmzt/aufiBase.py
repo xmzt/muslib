@@ -111,14 +111,16 @@ def AufiEMeta(name, bases, namespace, **kwds):
             'Lyrics3v2Incomplete',
             'Lyrics3v2MagicInvalid',
 
-            'Mp3OtherChunkN',
             'Mp3FrameChunkNNe1',
             'Mp3FrequencyInconsistent',
+            'Mp3OtherChunkN',
 
             'Mp4BoxHeadIncomplete',
             'Mp4BoxIncomplete',
+            'Mp4BoxNimp',
             'Mp4BoxZInvalid',
             'Mp4ContainerStackFull',
+            'Mp4OtherChunkN',
             
             'Mpeg1AudFrame',
             'Mpeg1AudFrameIncomplete',

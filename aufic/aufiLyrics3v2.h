@@ -1,6 +1,8 @@
 #ifndef AUFILYRICS3V2_H
 #define AUFILYRICS3V2_H
 
+//$! import butil
+
 #include "aufiParse.h"
 #include "bitutil.h"
 
@@ -19,8 +21,21 @@
 //$!
 typedef int AufiLyrics3v2Cb_parseE(void *arg, size_t pos, int e);
 typedef int AufiLyrics3v2Cb_size(void *arg, size_t pos, unsigned int size);
-//$! cbV,parseState = aufiParse_h.env.cbVParseStateFromFrag(_frag)
+//$! cbV = butil.cbVFromScope(_bi.buildr.fragr.goStart(_bi.scope, _frag))
 //$! aufiParse_h.env.parseCbsStruct(_acc, (parseCbsIden := 'AufiLyrics3v2ParseCbs'), cbV)
+
+//-----------------------------------------------------------------------------------------------------------------------
+// Parse
+//-----------------------------------------------------------------------------------------------------------------------
+
+typedef struct {
+	AufiLyrics3v2ParseCbs cbs;
+} AufiLyrics3v2Parse;
+//$! _bi.buildr.fragr.goStart(_bi.scope, _frag)
+
+inline static void aufiLyrics3v2ParseInit(AufiLyrics3v2Parse *self) {
+	//self->cbs 
+}
 
 //-----------------------------------------------------------------------------------------------------------------------
 // ParseLocal
@@ -33,18 +48,5 @@ typedef struct {
 
 inline static void
 aufiLyrics3v2ParseLocalInit(AufiLyrics3v2ParseLocal *local) {}
-
-//-----------------------------------------------------------------------------------------------------------------------
-// Parse
-//-----------------------------------------------------------------------------------------------------------------------
-
-typedef struct {
-	AufiParseArgs p;
-	AufiLyrics3v2ParseCbs *lyrics3v2Cbs;
-	//AufiLyrics3v2ParseState *lyrics3v2State;
-} AufiLyrics3v2ParseArgs;
-
-int
-aufiLyrics3v2Parse(AufiLyrics3v2ParseArgs *self);
 
 #endif

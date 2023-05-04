@@ -137,7 +137,7 @@ class Parser(util.ParserBase):
     # tagUpdate
 
     def tagUpdate(self, path):
-        tag = self.meta.tagBytes(self.meta.tagCxt, self.state.userOffE - self.state.userOffA)
+        tag = self.meta.tagBytes(self.state.userOffE - self.state.userOffA)
         self.main.pwrite(path, tag, self.state.userOffA)
         self.logc.tagUpdate(tag)
 

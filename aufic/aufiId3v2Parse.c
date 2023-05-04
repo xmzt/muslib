@@ -4,11 +4,9 @@
 // Parse
 //-----------------------------------------------------------------------------------------------------------------------
 
-int
-aufiId3v2ParseSrc(AufiId3v2ParseArgs *self)
-{
-	uint8_t *gSrcE = self->p.src + self->p.srcZ;
-	uint8_t *gSrc = self->p.src;
+int aufiId3v2ParseSrc(AufiId3v2Parse *self, AufiParseArgs *args)  {
+	uint8_t *gSrcE = args->src + args->srcZ;
+	uint8_t *gSrc = args->src;
 	const uint8_t *gChunkE;
 	size_t gChunkZ;
 
@@ -33,20 +31,20 @@ aufiId3v2ParseSrc(AufiId3v2ParseArgs *self)
 	`lo`headSize = AufiId3v2Synchsafe32(gSrc + 6);
 	switch(`lo`headVersionMaj) {
 	case 4:
-		AufiCb(`cb`headV4, gSrc - self->p.src, `lo`headVersionMaj, `lo`headVersionMin, `lo`headFlags, `lo`headSize);
+		AufiCb(`cb`headV4, gSrc - args->src, `lo`headVersionMaj, `lo`headVersionMin, `lo`headFlags, `lo`headSize);
 		break;
 	case 3:
-		AufiCb(`cb`headV3, gSrc - self->p.src, `lo`headVersionMaj, `lo`headVersionMin, `lo`headFlags, `lo`headSize);
+		AufiCb(`cb`headV3, gSrc - args->src, `lo`headVersionMaj, `lo`headVersionMin, `lo`headFlags, `lo`headSize);
 		break;
 	case 2:
-		AufiCb(`cb`headV2, gSrc - self->p.src, `lo`headVersionMaj, `lo`headVersionMin, `lo`headFlags, `lo`headSize);
+		AufiCb(`cb`headV2, gSrc - args->src, `lo`headVersionMaj, `lo`headVersionMin, `lo`headFlags, `lo`headSize);
 		break;
 	default:
-		AufiCb(`cb`headVx, gSrc - self->p.src, `lo`headVersionMaj, `lo`headVersionMin, `lo`headFlags, `lo`headSize);
+		AufiCb(`cb`headVx, gSrc - args->src, `lo`headVersionMaj, `lo`headVersionMin, `lo`headFlags, `lo`headSize);
 		break;
 	}
 	if((gChunkE = `lo`srcA + `lo`headSize) > gSrcE) {
-		AufiCb(`cb`parseE, gSrc - self->p.src, AufiE_Id3v2Incomplete);
+		AufiCb(`cb`parseE, gSrc - args->src, AufiE_Id3v2Incomplete);
 		goto `go`FinChunkInvalid;
 	}
 	gChunkZ = gChunkE - gSrc;
@@ -55,7 +53,7 @@ aufiId3v2ParseSrc(AufiId3v2ParseArgs *self)
 	case 3: goto `go`V3;
 	case 2: goto `go`V2;
 	default:
-		AufiCb(`cb`parseE, gSrc - self->p.src, AufiE_Id3v2HeadVersionInvalid);
+		AufiCb(`cb`parseE, gSrc - args->src, AufiE_Id3v2HeadVersionInvalid);
 		goto `go`FinChunkOk;
 	}
 	
@@ -64,7 +62,7 @@ aufiId3v2ParseSrc(AufiId3v2ParseArgs *self)
 	`lo`frameNextGoto = &&`go`V4FrameNext;
 	if(AufiId3v2HeadFlagV4_Unsynchronization & `lo`headFlags) {
 	`go`HeadUnsynchronizationNimp:
-		AufiCb(`cb`parseE, gSrc - self->p.src, AufiE_Id3v2HeadUnsynchronizationNimp);
+		AufiCb(`cb`parseE, gSrc - args->src, AufiE_Id3v2HeadUnsynchronizationNimp);
 		goto `go`FinChunkOk;
 	}
 	if(! (AufiId3v2HeadFlagV4_ExtendedHeader & `lo`headFlags)) {
@@ -73,7 +71,7 @@ aufiId3v2ParseSrc(AufiId3v2ParseArgs *self)
 	}
 	if((`lo`srcC = `lo`srcA + 6) > gChunkE) {
 	`go`ExtIncomplete:
-		AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2ExtIncomplete);
+		AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2ExtIncomplete);
 		goto `go`FinChunkOk;
 	}
 	`lo`extSize = AufiId3v2Synchsafe32(`lo`srcA);
@@ -81,7 +79,7 @@ aufiId3v2ParseSrc(AufiId3v2ParseArgs *self)
 	// srcB = end of ext
 	`lo`extFlagBytesN = `lo`srcA[4];
 	if(1 != `lo`extFlagBytesN) {
-		AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2ExtFlagBytesNInvalid);
+		AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2ExtFlagBytesNInvalid);
 		goto `go`V4FrameNext;
 	}
 	`lo`extFlags = `lo`srcA[5];
@@ -90,24 +88,24 @@ aufiId3v2ParseSrc(AufiId3v2ParseArgs *self)
 	if(AufiId3v2ExtFlagV4_Crc & `lo`extFlags) {
 		if((`lo`srcC += 5) > `lo`srcB) {
 		`go`ExtCrcIncomplete:
-			AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2ExtCrcIncomplete);
+			AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2ExtCrcIncomplete);
 			goto *`lo`frameNextGoto; // might be called from v3
 		}
 		`lo`extCrc = AufiId3v2Synchsafe40(`lo`srcC - 5);
 	}
 	if(AufiId3v2ExtFlagV4_Restrictions & `lo`extFlags) {
 		if((`lo`srcC += 2) > `lo`srcB) {
-			AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2ExtRestrictionsIncomplete);
+			AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2ExtRestrictionsIncomplete);
 			goto `go`V4FrameNext;
 		}
 		`lo`extRestrictionsBytesN = `lo`srcC[-2];
 		if(1 != `lo`extRestrictionsBytesN) {
-			AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2ExtRestrictionsBytesNInvalid);
+			AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2ExtRestrictionsBytesNInvalid);
 			goto `go`V4FrameNext;
 		}
 		`lo`extRestrictions = `lo`srcC[-1];
 	}
-	AufiCb(`cb`extHeadV4, `lo`srcA - self->p.src, `lo`extSize, `lo`extFlags, `lo`extCrc, `lo`extRestrictions);
+	AufiCb(`cb`extHeadV4, `lo`srcA - args->src, `lo`extSize, `lo`extFlags, `lo`extCrc, `lo`extRestrictions);
 	
  `go`V4FrameNext:
 	// srcB = start of frame. set srcA to start
@@ -117,29 +115,29 @@ aufiId3v2ParseSrc(AufiId3v2ParseArgs *self)
 	BitId32_32(`lo`frameId32, `lo`srcA);
 	`lo`frameSize = AufiId3v2Synchsafe32(`lo`srcA + 4);
 	`lo`frameFlags = BitU16M(`lo`srcA + 8);
-	AufiCb(`cb`frameHeadV4, `lo`srcA - self->p.src, `lo`frameId32, `lo`frameSize, `lo`frameFlags);
+	AufiCb(`cb`frameHeadV4, `lo`srcA - args->src, `lo`frameId32, `lo`frameSize, `lo`frameFlags);
 	// srcC = start of payload
 	if((`lo`srcB = `lo`srcC + `lo`frameSize) > gChunkE) {
 	`go`FrameIncomplete:
-		AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2FrameIncomplete);
+		AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2FrameIncomplete);
 		goto `go`FinChunkOk;
 	}
 	// srcB = end of frame
 	if(AufiId3v2FrameFlagV4_Compression & `lo`frameFlags) {
 	`go`FrameCompressionNimp:
-		AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2FrameCompressionNimp);
+		AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2FrameCompressionNimp);
 		goto *`lo`frameNextGoto;
 	}
 	if(AufiId3v2FrameFlagV4_Encryption & `lo`frameFlags) {
 	`go`FrameEncryptionNimp:
-		AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2FrameEncryptionNimp);
+		AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2FrameEncryptionNimp);
 		goto *`lo`frameNextGoto;
 	}
 	if(AufiId3v2FrameFlagV4_Unsynchronization & `lo`frameFlags) {
-		AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2FrameUnsynchronizationNimp);
+		AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2FrameUnsynchronizationNimp);
 		goto *`lo`frameNextGoto;
 	}
-	// fall through
+	//goto `go`V43FrameId
 	
  `go`V43FrameId:
 	// srcA = start of frame, srcB = end of frame, srcC = start of payload / advance
@@ -172,7 +170,7 @@ aufiId3v2ParseSrc(AufiId3v2ParseArgs *self)
 		goto `go`Frame_W___;
 	}
  `go`FrameUnknown:
-	AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2FrameUnknown);
+	AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2FrameUnknown);
 	goto *`lo`frameNextGoto;
 
  `go`V3:
@@ -194,7 +192,7 @@ aufiId3v2ParseSrc(AufiId3v2ParseArgs *self)
 		if((`lo`srcA + 14) > `lo`srcB) goto `go`ExtCrcIncomplete;
 		`lo`extCrc = BitU32M(`lo`srcA + 10);
 	}
-	AufiCb(`cb`extHeadV3, `lo`srcA - self->p.src, `lo`extSize, `lo`extFlags, `lo`extPaddingSize, `lo`extCrc);
+	AufiCb(`cb`extHeadV3, `lo`srcA - args->src, `lo`extSize, `lo`extFlags, `lo`extPaddingSize, `lo`extCrc);
 
  `go`V3FrameNext:
 	// srcB = start of frame. set srcA to start
@@ -204,7 +202,7 @@ aufiId3v2ParseSrc(AufiId3v2ParseArgs *self)
 	BitId32_32(`lo`frameId32, `lo`srcA);
 	`lo`frameSize = BitU32M(`lo`srcA + 4);
 	`lo`frameFlags = BitU16M(`lo`srcA + 8);
-	AufiCb(`cb`frameHeadV3, `lo`srcA - self->p.src, `lo`frameId32, `lo`frameSize, `lo`frameFlags);
+	AufiCb(`cb`frameHeadV3, `lo`srcA - args->src, `lo`frameId32, `lo`frameSize, `lo`frameFlags);
 	// srcC = start of payload
 	if((`lo`srcB = `lo`srcC + `lo`frameSize) > gChunkE) goto `go`FrameIncomplete;
 	// srcB = end of frame 
@@ -217,7 +215,7 @@ aufiId3v2ParseSrc(AufiId3v2ParseArgs *self)
 	`lo`frameNextGoto = &&`go`V2FrameNext;
 	if(AufiId3v2HeadFlagV2_Unsynchronization & `lo`headFlags) goto `go`HeadUnsynchronizationNimp;
 	if(AufiId3v2HeadFlagV2_Compression & `lo`headFlags) {
-		AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2HeadCompressionNimp);
+		AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2HeadCompressionNimp);
 		goto `go`FinChunkOk;
 	}
 	`lo`srcB = `lo`srcA;
@@ -228,7 +226,7 @@ aufiId3v2ParseSrc(AufiId3v2ParseArgs *self)
 	if(! `lo`srcA[0]) goto `go`Padding;
 	BitId32_24(`lo`frameId32, `lo`srcA);
 	`lo`frameSize = BitU24M(`lo`srcA + 3);
-	AufiCb(`cb`frameHeadV2, `lo`srcA - self->p.src, `lo`frameId32, `lo`frameSize);
+	AufiCb(`cb`frameHeadV2, `lo`srcA - args->src, `lo`frameId32, `lo`frameSize);
 	// srcC = start of payload
 	if((`lo`srcB = `lo`srcC + `lo`frameSize) > gChunkE) goto `go`FrameIncomplete;
 	switch(`lo`frameId32.u8s[0]) {
@@ -255,7 +253,7 @@ aufiId3v2ParseSrc(AufiId3v2ParseArgs *self)
 
  `go`Frame_T___:
 	if((`lo`srcC += 1) > `lo`srcB) {
-		AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2FramePayloadEmpty);
+		AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2FramePayloadEmpty);
 		goto *`lo`frameNextGoto;
 	}
 	switch((`lo`encoding = `lo`srcC[-1])) {
@@ -266,7 +264,7 @@ aufiId3v2ParseSrc(AufiId3v2ParseArgs *self)
 	case AufiId3v2Encoding_utf_16_be:
 		goto `go`Frame_T____16;
 	default:
-		AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2FramePayloadNenc);
+		AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2FramePayloadNenc);
 		`lo`encoding = -1;
 		`lo`srcC -= 1;
 		goto `go`Frame_T____8;
@@ -276,23 +274,23 @@ aufiId3v2ParseSrc(AufiId3v2ParseArgs *self)
 	for(`lo`srcD = `lo`srcC; (`lo`srcD += 1) <= `lo`srcB; ) {
 		if(! `lo`srcD[-1]) goto `go`Frame_T____8Fin;
 	}
-	AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2FramePayloadNterm8);
+	AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2FramePayloadNterm8);
  `go`Frame_T____8Fin:
-	AufiCb(`cb`frame_T___, `lo`srcA - self->p.src, `lo`frameId32, `lo`encoding, `lo`srcC, `lo`srcD - 1);
+	AufiCb(`cb`frame_T___, `lo`srcA - args->src, `lo`frameId32, `lo`encoding, `lo`srcC, `lo`srcD - 1);
 	goto *`lo`frameNextGoto;
 	
  `go`Frame_T____16:
 	for(`lo`srcD = `lo`srcC; (`lo`srcD += 2) <= `lo`srcB; ) {
 		if(! `lo`srcD[-2] && ! `lo`srcD[-1]) goto `go`Frame_T____16Fin;
 	}
-	AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2FramePayloadNterm16);
+	AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2FramePayloadNterm16);
  `go`Frame_T____16Fin:
-	AufiCb(`cb`frame_T___, `lo`srcA - self->p.src, `lo`frameId32, `lo`encoding, `lo`srcC, `lo`srcD - 2);
+	AufiCb(`cb`frame_T___, `lo`srcA - args->src, `lo`frameId32, `lo`encoding, `lo`srcC, `lo`srcD - 2);
 	goto *`lo`frameNextGoto;
 		
  `go`Frame_TXXX:
 	if((`lo`srcC += 1) > `lo`srcB) {
-		AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2FramePayloadEmpty);
+		AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2FramePayloadEmpty);
 		goto *`lo`frameNextGoto;
 	}
 	switch((`lo`encoding = `lo`srcC[-1])) {
@@ -303,7 +301,7 @@ aufiId3v2ParseSrc(AufiId3v2ParseArgs *self)
 	case AufiId3v2Encoding_utf_16_be:
 		goto `go`Frame_TXXX_16;
 	default:
-		AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2FramePayloadNenc);
+		AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2FramePayloadNenc);
 		`lo`encoding = -1;
 		`lo`srcC -= 1;
 		goto `go`Frame_TXXX_8;
@@ -315,15 +313,15 @@ aufiId3v2ParseSrc(AufiId3v2ParseArgs *self)
 			for(`lo`srcE = `lo`srcD; (`lo`srcE += 1) <= `lo`srcB; ) {
 				if(! `lo`srcE[-1]) goto `go`Frame_TXXX_8Fin;
 			}
-			AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2FramePayloadNterm8);
+			AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2FramePayloadNterm8);
 		`go`Frame_TXXX_8Fin:
-			AufiCb(`cb`frame_TXXX, `lo`srcA - self->p.src, `lo`frameId32, `lo`encoding,
+			AufiCb(`cb`frame_TXXX, `lo`srcA - args->src, `lo`frameId32, `lo`encoding,
 				   `lo`srcC, `lo`srcD - 1,
 				   `lo`srcD, `lo`srcE - 1);
 			goto *`lo`frameNextGoto;
 		}
 	}
-	AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2FramePayloadNsep8);
+	AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2FramePayloadNsep8);
 	goto *`lo`frameNextGoto;
 	
  `go`Frame_TXXX_16:
@@ -332,24 +330,24 @@ aufiId3v2ParseSrc(AufiId3v2ParseArgs *self)
 			for(`lo`srcE = `lo`srcD; (`lo`srcE += 2) <= `lo`srcB; ) {
 				if(! `lo`srcE[-2] && ! `lo`srcE[-1]) goto `go`Frame_TXXX_16Fin;
 			}
-			AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2FramePayloadNterm16);
+			AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2FramePayloadNterm16);
 		`go`Frame_TXXX_16Fin:
-			AufiCb(`cb`frame_TXXX, `lo`srcA - self->p.src, `lo`frameId32, `lo`encoding,
+			AufiCb(`cb`frame_TXXX, `lo`srcA - args->src, `lo`frameId32, `lo`encoding,
 				   `lo`srcC, `lo`srcD - 2,
 				   `lo`srcD, `lo`srcE - 2);
 			goto *`lo`frameNextGoto;
 		}
 	}
-	AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2FramePayloadNsep16);
+	AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2FramePayloadNsep16);
 	goto *`lo`frameNextGoto;
 	
  `go`Frame_W___:
 	for(`lo`srcD = `lo`srcC; (`lo`srcD += 1) <= `lo`srcB; ) {
 		if(! `lo`srcD[-1]) goto `go`Frame_W____Fin;
 	}
-	AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2FramePayloadNterm8);
+	AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2FramePayloadNterm8);
  `go`Frame_W____Fin:
-	AufiCb(`cb`frame_W___, `lo`srcA - self->p.src, `lo`frameId32, `lo`srcC, `lo`srcD - 1);
+	AufiCb(`cb`frame_W___, `lo`srcA - args->src, `lo`frameId32, `lo`srcC, `lo`srcD - 1);
 	goto *`lo`frameNextGoto;
 
  `go`Frame_WXXX:
@@ -358,15 +356,15 @@ aufiId3v2ParseSrc(AufiId3v2ParseArgs *self)
 			for(`lo`srcE = `lo`srcD; (`lo`srcE += 1) <= `lo`srcB; ) {
 				if(! `lo`srcE[-1]) goto `go`Frame_WXXX_Fin;
 			}
-			AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2FramePayloadNterm8);
+			AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2FramePayloadNterm8);
 		`go`Frame_WXXX_Fin:
-			AufiCb(`cb`frame_WXXX, `lo`srcA - self->p.src, `lo`frameId32,
+			AufiCb(`cb`frame_WXXX, `lo`srcA - args->src, `lo`frameId32,
 				   `lo`srcC, `lo`srcD - 1,
 				   `lo`srcD, `lo`srcE - 1);
 			goto *`lo`frameNextGoto;
 		}
 	}
-	AufiCb(`cb`parseE, `lo`srcA - self->p.src, AufiE_Id3v2FramePayloadNsep8);
+	AufiCb(`cb`parseE, `lo`srcA - args->src, AufiE_Id3v2FramePayloadNsep8);
 	goto *`lo`frameNextGoto;
 
 	//------------------------------------------------------------------------------------------------------------------
@@ -378,15 +376,15 @@ aufiId3v2ParseSrc(AufiId3v2ParseArgs *self)
  `go`Padding:
 	do {
 		if(`lo`srcB[0]) {
-			AufiCb(`cb`padding, `lo`srcA - self->p.src, `lo`srcB - `lo`srcA);
-			AufiCb(`cb`parseE, `lo`srcB - self->p.src, AufiE_Id3v2PaddingInvalid);
+			AufiCb(`cb`padding, `lo`srcA - args->src, `lo`srcB - `lo`srcA);
+			AufiCb(`cb`parseE, `lo`srcB - args->src, AufiE_Id3v2PaddingInvalid);
 			goto `go`FinChunkOk;
 		}
 	} while((`lo`srcB += 1) < gChunkE);
-	AufiCb(`cb`padding, `lo`srcA - self->p.src, `lo`srcB - `lo`srcA);
+	AufiCb(`cb`padding, `lo`srcA - args->src, `lo`srcB - `lo`srcA);
 	goto `go`FinChunkOk;
 	//$B     pass
-	//$! body(_acc, 'self->id3v2Cbs->', 'local.', '')
+	//$! body(_acc, 'self->cbs.', 'local.', '')
 
  FinChunkOk: return 0;
  FinChunkInvalid: return AufiE_Id3v2;

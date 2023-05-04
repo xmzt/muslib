@@ -4,9 +4,7 @@
 // Parse
 //-----------------------------------------------------------------------------------------------------------------------
 
-int
-aufiMpeg1AudFrameParseSrc(AufiMpeg1AudFrameParseArgs *self)
-{
+int aufiMpeg1AudFrameParseSrc(AufiMpeg1AudFrameParse *self, AufiParseArgs *args) {
 	uint8_t *gSrcE = self->p.src + self->p.srcZ;
 	uint8_t *gSrc = self->p.src;
 	const uint8_t *gChunkE;
@@ -28,11 +26,11 @@ aufiMpeg1AudFrameParseSrc(AufiMpeg1AudFrameParseArgs *self)
 	//$! def body(_acc, cb, lo, go, st):
  `go`SyncOk2:
 	if(! (gChunkZ = AufiMpeg1AudFrameZTableLayer3[gSrc[2] >> 1 & BitOmask(7)])) {
-		AufiCb(`cb`parseE, gSrc - self->p.src, AufiE_Mpeg1AudFrameLen0);
+		AufiCb(`cb`parseE, gSrc - args->src, AufiE_Mpeg1AudFrameLen0);
 		goto `go`FinChunkInvalid;
 	}
 	if((gChunkE = gSrc + gChunkZ) > gSrcE) {
-		AufiCb(`cb`parseE, gSrc - self->p.src, AufiE_Mpeg1AudFrameIncomplete);
+		AufiCb(`cb`parseE, gSrc - args->src, AufiE_Mpeg1AudFrameIncomplete);
 		goto `go`FinChunkInvalid;
 	}
 	// frame valid
@@ -44,13 +42,13 @@ aufiMpeg1AudFrameParseSrc(AufiMpeg1AudFrameParseArgs *self)
 	//`lo`copyright = gSrc[3] >> 3 & BitOmask(1);
 	//`lo`original  = gSrc[3] >> 2 & BitOmask(1);
 	//`lo`emphasis  = gSrc[3] >> 0 & BitOmask(2);
-	AufiCb(`cb`valid, gSrc - self->p.src, gChunkZ, `lo`bitrate, `lo`frequency);
+	AufiCb(`cb`valid, gSrc - args->src, gChunkZ, `lo`bitrate, `lo`frequency);
 	`st`n++;
 	`st`bitrateNs[`lo`bitrate]++;
 	`st`frequencyNs[`lo`frequency]++;
 	goto `go`FinChunkOk;
 	//$B     pass
-	//$! body(_acc, 'self->mpeg1AudFrameCbs->', 'local.', '', 'self->mpeg1AudFrameState->')
+	//$! body(_acc, 'self->cbs.', 'local.', '', 'self->')
 
  FinChunkOk: return 0;
  FinChunkInvalid: return AufiE_Mpeg1AudFrame;

@@ -10,13 +10,11 @@
 // parse
 //-----------------------------------------------------------------------------------------------------------------------
 
-int
-aufiMp3ParseSrc(AufiMp3ParseArgs *self)
-{
-	const uint8_t *gSrcE = self->p.src + self->p.srcZ;
-	const uint8_t *gSrc = self->p.src;
-	uint8_t *gAud = self->p.aud + self->p.audHeadZ;
-	uint8_t *gNaud = self->p.naud + sizeof(AufiNaudHead);
+int aufiMp3ParseSrc(AufiMp3Parse *self, AufiParseArgs *args) {
+	const uint8_t *gSrcE = args->src + args->srcZ;
+	const uint8_t *gSrc = args->src;
+	uint8_t *gAud = args->aud + args->audHeadZ;
+	uint8_t *gNaud = args->naud + sizeof(AufiNaudHead);
 	XXH3_state_t gAudHashState;
 	const uint8_t *gChunkA;
 	const uint8_t *gChunkE;
@@ -48,14 +46,14 @@ aufiMp3ParseSrc(AufiMp3ParseArgs *self)
 	// repeatFin coroutines
 
  OtherRepeatFin:
-	self->mp3State->otherChunkN++;
-	self->mp3State->otherByteN += gSrc - gChunkA;
-	AufiCb(self->mp3Cbs->otherChunk, gChunkA - self->p.src, gSrc - gChunkA, gChunkA, gSrc);
+	self->otherChunkN++;
+	self->otherByteN += gSrc - gChunkA;
+	AufiCb(self->cbs.otherChunk, gChunkA - args->src, gSrc - gChunkA, gChunkA, gSrc);
 	goto *gRepeatFinRet;
 	
  FrameRepeatFin:
-	self->mp3State->frameChunkN++;
-	AufiCb(self->mp3Cbs->frameChunk, gChunkA - self->p.src, gSrc - gChunkA);
+	self->frameChunkN++;
+	AufiCb(self->cbs.frameChunk, gChunkA - args->src, gSrc - gChunkA);
 	goto *gRepeatFinRet;
 
  RepeatFinNoop:
@@ -76,7 +74,7 @@ aufiMp3ParseSrc(AufiMp3ParseArgs *self)
 		gRepeatFinRet = &&OtherRepeatFinRet;
 		goto *gRepeatFinGo;
 	OtherRepeatFinRet:
-		if((gAufiE = aufiChunkrAdd(self->p.chunkr, AufiChunkType_Naud, gSrc - self->p.src, gNaud - self->p.naud)))
+		if((gAufiE = aufiChunkrAdd(args->chunkr, AufiChunkType_Naud, gSrc - args->src, gNaud - args->naud)))
 			goto ChunkrAddE;
 		gChunkA = gSrc;
 		gRepeatFinGo = &&OtherRepeatFin;
@@ -91,7 +89,7 @@ aufiMp3ParseSrc(AufiMp3ParseArgs *self)
 	gRepeatFinRet = &&TagFinRepeatFinRet;
 	goto *gRepeatFinGo;
  TagFinRepeatFinRet:
-	if((gAufiE = aufiChunkrAdd(self->p.chunkr, AufiChunkType_Naud, gSrc - self->p.src, gNaud - self->p.naud)))
+	if((gAufiE = aufiChunkrAdd(args->chunkr, AufiChunkType_Naud, gSrc - args->src, gNaud - args->naud)))
 		goto ChunkrAddE;
 	gRepeatFinGo = &&RepeatFinNoop;
 	memcpy(gNaud, gSrc, gChunkZ);
@@ -103,7 +101,7 @@ aufiMp3ParseSrc(AufiMp3ParseArgs *self)
 		gRepeatFinRet = &&FrameFinRepeatFinRet;
 		goto *gRepeatFinGo;
 	FrameFinRepeatFinRet:
-		if((gAufiE = aufiChunkrAdd(self->p.chunkr, AufiChunkType_Aud, gSrc - self->p.src, gAud - self->p.aud)))
+		if((gAufiE = aufiChunkrAdd(args->chunkr, AufiChunkType_Aud, gSrc - args->src, gAud - args->aud)))
 			goto ChunkrAddE;
 		gChunkA = gSrc;
 		gRepeatFinGo = &&FrameRepeatFin;
@@ -111,7 +109,7 @@ aufiMp3ParseSrc(AufiMp3ParseArgs *self)
 	memcpy(gAud, gSrc, gChunkZ);
 	gAud += gChunkZ;
 	XXH3_128bits_update(&gAudHashState, gSrc, gChunkZ);
-	// fall through ChunkNext
+	//goto ChunkNext
  ChunkNext:
 	gSrc = gChunkE;
  Chunk_0:
@@ -167,11 +165,11 @@ aufiMp3ParseSrc(AufiMp3ParseArgs *self)
 	}
 	goto Other;
 
-	//$! frameC.env.body    (_acc, 'self->frameCbs->'    , 'frame.'    , 'Frame', 'self->frameState->')
-	//$! apev2C.env.body	(_acc, 'self->apev2Cbs->'	 , 'apev2.'	   , 'Apev2')
-	//$! id3v1C.env.body	(_acc, 'self->id3v1Cbs->'	 , 'id3v1.'	   , 'Id3v1')
-	//$! id3v2C.env.body    (_acc, 'self->id3v2Cbs->'	 , 'id3v2.'	   , 'Id3v2')
-	//$! lyrics3v2C.env.body(_acc, 'self->lyrics3v2Cbs->', 'lyrics3v2.', 'Lyrics3v2')
+	//$! frameC.env.body    (_acc, 'self->frame.cbs.'    , 'frame.'    , 'Frame', 'self->frame.')
+	//$! apev2C.env.body	(_acc, 'self->apev2.cbs.'	 , 'apev2.'	   , 'Apev2')
+	//$! id3v1C.env.body	(_acc, 'self->id3v1.cbs.'	 , 'id3v1.'	   , 'Id3v1')
+	//$! id3v2C.env.body    (_acc, 'self->id3v2.cbs.'	 , 'id3v2.'	   , 'Id3v2')
+	//$! lyrics3v2C.env.body(_acc, 'self->lyrics3v2.cbs.', 'lyrics3v2.', 'Lyrics3v2')
 
 	//------------------------------------------------------------------------------------------------------------------
 	// Eof
@@ -180,11 +178,11 @@ aufiMp3ParseSrc(AufiMp3ParseArgs *self)
 	gRepeatFinRet = &&EofRepeatFinRet;
 	goto *gRepeatFinGo;
  EofRepeatFinRet:
-	AufiCb(self->mp3Cbs->eof, gSrc - self->p.src);
-	if((gAufiE = aufiChunkrAdd(self->p.chunkr, AufiChunkType_Fin, gSrc - self->p.src, 0))) goto ChunkrAddE;
-	self->p.chunkr->audZ = gAud - self->p.aud;
-	self->p.chunkr->naudZ = gNaud - self->p.naud;
-	self->p.chunkr->audHash = XXH3_128bits_digest(&gAudHashState);
+	AufiCb(self->cbs.eof, gSrc - args->src);
+	if((gAufiE = aufiChunkrAdd(args->chunkr, AufiChunkType_Fin, gSrc - args->src, 0))) goto ChunkrAddE;
+	args->chunkr->audZ = gAud - args->aud;
+	args->chunkr->naudZ = gNaud - args->naud;
+	args->chunkr->audHash = XXH3_128bits_digest(&gAudHashState);
 	return 0;
 
  CbError:

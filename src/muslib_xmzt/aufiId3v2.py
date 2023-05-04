@@ -114,15 +114,14 @@ class Parser(util.ParserBase):
     #--------------------------------------------------------------------------------------------------------------------
     # tagBytes
 
-    @staticmethod
-    def tagBytes(tagCxt, bufZ):
+    def tagBytes(self, bufZ):
         dst = bytearray(b'ID3\x04\x00\x00') #magic and version and flags
         dst += synchsafe32(bufZ - 10)
-        tagFrameT___(dst, b'TPE1', 0, id3v2Base.Encoding.utf_8, tagCxt.artist)
-        tagFrameT___(dst, b'TYER', 0, id3v2Base.Encoding.latin_1, tagCxt.year)
-        tagFrameT___(dst, b'TALB', 0, id3v2Base.Encoding.utf_8, tagCxt.album)
-        tagFrameT___(dst, b'TRCK', 0, id3v2Base.Encoding.latin_1, tagCxt.trackno)
-        tagFrameT___(dst, b'TIT2', 0, id3v2Base.Encoding.utf_8, tagCxt.title)
+        tagFrameT___(dst, b'TPE1', 0, id3v2Base.Encoding.utf_8, self.tagCxt.artist)
+        tagFrameT___(dst, b'TYER', 0, id3v2Base.Encoding.latin_1, self.tagCxt.year)
+        tagFrameT___(dst, b'TALB', 0, id3v2Base.Encoding.utf_8, self.tagCxt.album)
+        tagFrameT___(dst, b'TRCK', 0, id3v2Base.Encoding.latin_1, self.tagCxt.trackno)
+        tagFrameT___(dst, b'TIT2', 0, id3v2Base.Encoding.utf_8, self.tagCxt.title)
         dst += b'\0' * (bufZ - len(dst))
         return dst
 
@@ -151,10 +150,8 @@ def tagFrameT___(dst, id, flags, encoding, text):
     dst += payloadTerm
     return dst
 
-@staticmethod
 def synchsafe32(src):
     return ((  0x0FE00000 & src) << 3
             | (0x001FC000 & src) << 2
             | (0x00003F80 & src) << 1
             | (0x0000007F & src)).to_bytes(4, byteorder='big')
-

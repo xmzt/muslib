@@ -127,7 +127,7 @@ class Parser(util.ParserBase):
     # tagUpdate
 
     def tagUpdate(self, path):
-        tag = self.id3v2.tagBytes(self.id3v2.tagCxt, self.main.mp3AudHeadSize)
+        tag = self.id3v2.tagBytes(self.main.mp3AudHeadSize)
         self.main.pwrite(path,tag, 0)
         self.logc.tagUpdate(tag)
 

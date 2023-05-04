@@ -160,6 +160,7 @@ class Main:
         self.dbConnect = noop
 
     def parse(self, srcPath):
+        self.logrInit()
         root,ext = os.path.splitext(srcPath)
         clas = self.fileClasByExt[ext]
         parser = clas.ParserClas(self, taglib.Tagr(self).cxtNew(None))

@@ -1,6 +1,8 @@
 #ifndef AUFIID3V1_H
 #define AUFIID3V1_H
 
+//$! import butil
+
 #include "aufiParse.h"
 
 //-----------------------------------------------------------------------------------------------------------------------
@@ -31,9 +33,21 @@ typedef int AufiId3v1Cb_speed(void *arg, size_t pos, unsigned int speed);
 typedef int AufiId3v1Cb_genre(void *arg, size_t pos, const uint8_t *b, const uint8_t *bE);
 typedef int AufiId3v1Cb_startTime(void *arg, size_t pos, const uint8_t *b, const uint8_t *bE);
 typedef int AufiId3v1Cb_endTime(void *arg, size_t pos, const uint8_t *b, const uint8_t *bE);
-//$! cbV,parseState = aufiParse_h.env.cbVParseStateFromFrag(_frag)
+//$! cbV = butil.cbVFromScope(_bi.buildr.fragr.goStart(_bi.scope, _frag))
 //$! aufiParse_h.env.parseCbsStruct(_acc, (parseCbsIden := 'AufiId3v1ParseCbs'), cbV)
 
+//-----------------------------------------------------------------------------------------------------------------------
+// Parse
+//-----------------------------------------------------------------------------------------------------------------------
+
+typedef struct {
+	AufiId3v1ParseCbs cbs;
+} AufiId3v1Parse;
+//$! _bi.buildr.fragr.goStart(_bi.scope, _frag)
+
+inline static void aufiId3v1ParseInit(AufiId3v1Parse *self) {
+	//self->cbs 
+}
 
 //-----------------------------------------------------------------------------------------------------------------------
 // ParseLocal
@@ -45,20 +59,6 @@ typedef struct {
 	const uint8_t *bE;
 } AufiId3v1ParseLocal;
 
-inline static void
-aufiId3v1ParseLocalInit(AufiId3v1ParseLocal *local) {}
-
-//-----------------------------------------------------------------------------------------------------------------------
-// Parse
-//-----------------------------------------------------------------------------------------------------------------------
-
-typedef struct {
-	AufiParseArgs p;
-	AufiId3v1ParseCbs *id3v1Cbs;
-	//AufiId3v1ParseState *id3v1State;
-} AufiId3v1ParseArgs;
-
-int
-aufiId3v1Parse(AufiId3v1ParseArgs *self);
+inline static void aufiId3v1ParseLocalInit(AufiId3v1ParseLocal *local) {}
 
 #endif

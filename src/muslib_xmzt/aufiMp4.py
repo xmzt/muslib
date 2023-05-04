@@ -10,14 +10,17 @@ import os
 #--------------------------------------------------------------------------------------------------------------------
 
 class Logc(util.Logc):
+    def __init__(self, main):
+        super().__init__(main)
+
     def wrap(self, *args):
-        return self.main.logr('[mp4] ', *args)
+        return self.logr(f'[mp4] ', *args)
 
     #--------------------------------------------------------------------------------------------------------------------
     # c callbacks
 
     def parseE(self, pos, e):
-        return self.main.logr(f'[ERROR mp4] <{pos}> {aufiBase.AufiE.des(e)}')
+        return self.logr(f'[ERROR mp4] <{pos}> {aufiBase.AufiE.des(e)}')
     
     def otherByte(self, pos, ch):
         return self.wrap(f'<{pos}> otherByte {ch!r}')
@@ -26,14 +29,22 @@ class Logc(util.Logc):
         return self.wrap(f'<{pos}> otherChunk')
 
     def box(self, pos, level, size, type, boxUuid):
+        self.logr.indSet(level*4)
         if b'uuid' == type:
-            return self.wrap(f'<{pos}> box {size=} boxUuid={boxUuid.hex()}')
+            return self.wrap(f'<{pos}> box {level=} {size=} uuid={boxUuid.hex()}')
         else:
-            return self.wrap(f'<{pos}> box {size=} {type=}')
+            return self.wrap(f'<{pos}> box {level=} {size=} {type=}')
         
     def boxHexdump(self, boxType, payload):
         return self.wrap(f'{boxType}').inMlHex(payload)
 
+    def boxNimp(self, pos, level, size, type, boxUuid):
+        self.logr.indSet(level*4)
+        if b'uuid' == type:
+            return self.wrap(f'<{pos}> boxNimp {level=} {size=} uuid={boxUuid.hex()}')
+        else:
+            return self.wrap(f'<{pos}> boxNimp {level=} {size=} {type=}')
+        
     def data(self, upType, dataType, country, language, payload):
         with self.wrap(f'data') as logr:
             logr(f'{upType=}')
@@ -51,6 +62,17 @@ class Logc(util.Logc):
                                           f'{flags=}',
                                           f'{entryCount=}')
 
+    def esds(self, version, flags, esId, flagStreamPriority, dependsOnEsId, url, ocrEsId):
+        with self.wrap(f'esds') as logr:
+            logr(f'{version=}')
+            logr(f'{flags=}')
+            logr(f'{esId=}')
+            logr(f'{flagStreamPriority=}')
+            logr(f'{dependsOnEsId=}')
+            logr(f'{url=}')
+            logr(f'{ocrEsId=}')
+            return logr
+        
     def ftypHead(self, majorBrand, minorBrand):
         return self.wrap(f'ftypHead {majorBrand=} {minorBrand=}')
 
@@ -160,7 +182,7 @@ class Logc(util.Logc):
              flags,
              creationTime,
              modificationTime,
-             timescale,
+             trackId,
              duration,
              layer,
              alternateGroup,
@@ -171,7 +193,7 @@ class Logc(util.Logc):
                                           f'{flags=}',
                                           f'{creationTime=}',
                                           f'{modificationTime=}',
-                                          f'{timescale=}',
+                                          f'{trackId=}',
                                           f'{duration=}',
                                           f'{layer=}',
                                           f'{alternateGroup=}',
@@ -210,6 +232,8 @@ class Parser(util.ParserBase):
         super().__init__(main, main.logcMp4)
         self.tagCxt = tagCxt
 
+        self.state = aufiC.Mp4ParseState()
+
         self.otherByte = self.logc.otherByte
         self.otherChunk = self.logc.otherChunk
 
@@ -218,6 +242,7 @@ class Parser(util.ParserBase):
             self.boxHexdump = self.logc.boxHexdump
             self.data = self.logc.data
             self.dref = self.logc.dref
+            self.esds = self.logc.esds
             self.ftypHead = self.logc.ftypHead
             self.ftypCompat = self.logc.ftypCompat
             self.hdlr = self.logc.hdlr
@@ -229,26 +254,33 @@ class Parser(util.ParserBase):
             self.name = self.logc.name
             self.smhd = self.logc.smhd
             self.stco = self.logc.stco
-            self.stcoEntry = self.logc.stcoEntry
             self.stsc = self.logc.stsc
-            self.stscEntry = self.logc.stscEntry
             self.stsd = self.logc.stsd
             self.stsz = self.logc.stsz
-            self.stszEntry = self.logc.stszEntry
             self.stts = self.logc.stts
-            self.sttsEntry = self.logc.sttsEntry
             self.tkhd = self.logc.tkhd
             self.url_ = self.logc.url_
+
+        if 2 <= main.parseDbg:
+            self.stcoEntry = self.logc.stcoEntry
+            self.stscEntry = self.logc.stscEntry
+            self.stszEntry = self.logc.stszEntry
+            self.sttsEntry = self.logc.sttsEntry
+            
+    #--------------------------------------------------------------------------------------------------------------------
+    # box
+
+    def boxNimp(self, pos, level, size, type, boxUuid):
+        self.logc.boxNimp(pos, level, size, type, boxUuid)
+        self.parseE(pos, aufiBase.AufiE.Mp4BoxNimp)
 
     #--------------------------------------------------------------------------------------------------------------------
     # parse
 
     def parsePath(self, srcPath, audPath, naudPath):
         self.chunkr = aufiC.Chunkr(self.main.mp4ChunkrItemsNInit)
-        self.cbs = aufiC.Mp4ParseCbs(self)
-        self.state = aufiC.Mp4ParseState()
-        self.reject = None
-        
+        self.logc.logr = self.main.logr.birth()
+
         self.main.openRRwRwCb(
             srcPath, audPath, naudPath, lambda srcFd,audFd,naudFd: aufiC.mp4Parse(
                 srcFd,
@@ -257,24 +289,19 @@ class Parser(util.ParserBase):
                 self.chunkr,
                 self.main.mp4AudHeadSize,
                 srcPath,
-                self.cbs,
+                aufiC.Mp4ParseCbs(self),
                 self.state,
             )
         )
         self.logc.dump(self)
-        self.parseOk()
-        self.logc.status('ok')
+
+        if self.state.otherChunkN:
+            self.parseE(None, aufiBase.AufiE.Mp4OtherChunkN.val)
 
         self.main.openRRRCb(srcPath, audPath, naudPath,
                             lambda srcFd,audFd,naudFd: aufiC.naudVerifyFd(srcFd, audFd, naudFd, srcPath))
-        self.logc.status('verify ok')
-
-    def parseOk(self):
-        if None is not self.reject:
-            raise util.RejectException(self.reject)
-        if self.state.otherChunkN:
-            raise util.RejectException('Mp4OtherChunkNInvalid', f'{self.state.otherChunkN=}')
-
+        self.logc.status('ok')
+        
 #--------------------------------------------------------------------------------------------------------------------
 # File
 #--------------------------------------------------------------------------------------------------------------------

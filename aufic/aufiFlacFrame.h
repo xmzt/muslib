@@ -2,6 +2,7 @@
 #define AUFIFLACFRAME_H
 
 //$! _bi.alsoRel('aufiFlacFrame.c')
+//$! import butil
 
 #include "aufiParse.h"
 #include "aufiFlacMeta.h"
@@ -74,16 +75,24 @@ typedef int AufiFlacFrameCb_partitionRice(void *arg, unsigned int rice);
 typedef int AufiFlacFrameCb_partitionSampleZ(void *arg, unsigned int sampleZ);
 typedef int AufiFlacFrameCb_partitionVal(void *arg, unsigned int index, int val);
 typedef int AufiFlacFrameCb_foot(void *arg, size_t pos, unsigned int bitI);
-
-typedef struct {
-	size_t n;
-} AufiFlacFrameParseState;
-//$! cbV,parseState = aufiParse_h.env.cbVParseStateFromFrag(_frag)
+//$! cbV = butil.cbVFromScope(_bi.buildr.fragr.goStart(_bi.scope, _frag))
 //$! aufiParse_h.env.parseCbsStruct(_acc, (parseCbsIden := 'AufiFlacFrameParseCbs'), cbV)
 
-inline static void
-AufiFlacFrameParseStateInit(AufiFlacFrameParseState *state) {
-	state->n = 0;
+//-----------------------------------------------------------------------------------------------------------------------
+// Parse
+//-----------------------------------------------------------------------------------------------------------------------
+
+typedef struct {
+	AufiFlacFrameParseCbs cbs;
+	AufiFlacMetaParse *meta;
+	size_t n;
+} AufiFlacFrameParse;
+//$! _bi.buildr.fragr.goStart(_bi.scope, _frag)
+
+inline static void aufiFlacFrameParseInit(AufiFlacFrameParse *self, AufiFlacMetaParse *meta) {
+	//self->cbs 
+	self->meta = meta;
+	self->n = 0;
 }
 
 //-----------------------------------------------------------------------------------------------------------------------
@@ -139,20 +148,5 @@ aufiFlacFrameParseLocalInit(AufiFlacFrameParseLocal *local) {
 	local->srcB = NULL; // compiler warning
 
 }
-
-//-----------------------------------------------------------------------------------------------------------------------
-// Parse
-//-----------------------------------------------------------------------------------------------------------------------
-
-typedef struct {
-	AufiParseArgs p;
-	AufiFlacFrameParseCbs *frameCbs;
-	AufiFlacFrameParseState *frameState;
-	//AufiFlacMetaParseCbs *metaCbs;
-	AufiFlacMetaParseState *metaState;
-} AufiFlacFrameParseArgs;
-
-int
-aufiFlacFrameParse(AufiFlacFrameParseArgs *self);
 
 #endif

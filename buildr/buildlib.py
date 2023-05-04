@@ -32,7 +32,10 @@ class Buildr:
         #self.cachePathOpt
         #self.dstPathOpt
         #self.logr if using default log methods
+        
         #externally defined if using pplib:
+        #self.fragr
+        #self.scope0
         #self.tarRootPathOpt
         #self.importSnifr
 
@@ -185,9 +188,9 @@ class BuildItem:
         self.tar = tar
         self.fresh = buildr.fresh0
         # goingUp used to access parents in go() stack AND for loop detection.
-        #     goingUp == self means this item is not currently in go() stack. used for loop detection.
-        #     this allows goingUp == None to signify root of go() stack.
-        self.goingUp = self  
+        #     goingUp=self means this item is not currently in go() stack. used for loop detection.
+        #     goingUp=None signifies root of go() stack.
+        self.goingUp = self
         buildr.itemByTar[tar] = self
 
     def alias(self, tar):
@@ -198,7 +201,7 @@ class BuildItem:
         return self.buildr.itemGet(tar)
 
     def go(self, up, meth, *args, **kwds):
-        if self != self.goingUp:
+        if self is not self.goingUp:
             raise BuildLoopException(self)
         self.goingUp = up
         try:
@@ -226,7 +229,9 @@ class BuildItem:
     def pyModuleName(self):
         if None is not self.goingUp:
             return self.goingUp.pyModuleName()
-            
+
+    def scopeDnUpdate(self, dn): pass
+
 #------------------------------------------------------------------------------------------------------------------------
 # Dep1BuildItem
 #------------------------------------------------------------------------------------------------------------------------

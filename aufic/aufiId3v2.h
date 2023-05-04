@@ -2,6 +2,7 @@
 #define AUFIID3V2_H
 
 //$! from aufi_xmzt import id3v2Base
+//$! import butil
 
 #include "aufiParse.h"
 #include "bitutil.h"
@@ -108,9 +109,21 @@ typedef int AufiId3v2Cb_frame_WXXX(void *arg,
 								   const uint8_t *valE);
 
 typedef int AufiId3v2Cb_padding(void *arg, size_t pos, size_t size);
-
-//$! cbV,parseState = aufiParse_h.env.cbVParseStateFromFrag(_frag)
+//$! cbV = butil.cbVFromScope(_bi.buildr.fragr.goStart(_bi.scope, _frag))
 //$! aufiParse_h.env.parseCbsStruct(_acc, (parseCbsIden := 'AufiId3v2ParseCbs'), cbV)
+
+//-----------------------------------------------------------------------------------------------------------------------
+// Parse
+//-----------------------------------------------------------------------------------------------------------------------
+
+typedef struct {
+	AufiId3v2ParseCbs cbs;
+} AufiId3v2Parse;
+//$! _bi.buildr.fragr.goStart(_bi.scope, _frag)
+
+inline static void aufiId3v2ParseInit(AufiId3v2Parse *self) {
+	//self->cbs 
+}
 
 //-----------------------------------------------------------------------------------------------------------------------
 // ParseLocal
@@ -142,18 +155,5 @@ typedef struct {
 
 inline static void
 aufiId3v2ParseLocalInit(AufiId3v2ParseLocal *local) {}
-
-//-----------------------------------------------------------------------------------------------------------------------
-// Parse
-//-----------------------------------------------------------------------------------------------------------------------
-
-typedef struct {
-	AufiParseArgs p;
-	AufiId3v2ParseCbs *id3v2Cbs;
-	//AufiId3v2ParseState *id3v2State;
-} AufiId3v2ParseArgs;
-
-int
-aufiId3v2Parse(AufiId3v2ParseArgs *self);
 
 #endif

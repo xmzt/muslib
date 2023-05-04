@@ -3,6 +3,9 @@
 
 #include "aufiPy.h"
 
+//$! funV = []
+//$! moduleV = []
+
 //-------------------------------------------------------------------------------------------------------------
 // errors exceptions
 //-------------------------------------------------------------------------------------------------------------
@@ -62,12 +65,10 @@ McpyTupleSize_t(size_t *array, size_t arrayN)
 }
 
 //-------------------------------------------------------------------------------------------------------------
-// AufiPyCtypes
+// ctypes
 //-------------------------------------------------------------------------------------------------------------
 
-static PyObject *
-aufiPyCtypesMethod(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
-{
+static PyObject *ctypes_PyMethod(PyObject *self, PyObject *const *pyArgs, Py_ssize_t pyNargs) {
 	return Py_BuildValue("sIsIsIsIsI",
 						 "int", sizeof(int),
 						 "long", sizeof(long),
@@ -80,25 +81,79 @@ aufiPyCtypesMethod(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
 // AufiNaudVerifyFd
 //-------------------------------------------------------------------------------------------------------------
 
-static PyObject *
-aufiPyNaudVerifyFdMethod(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
-{
-	AufiNaudVerifyFdArgs va;
+static PyObject *aufiNaudVerifyFd_PyMethod(PyObject *self, PyObject *const *pyArgs, Py_ssize_t pyNargs) {
+	AufiNaudVerifyFdArgs args;
 	int e;
 	
-	if(pyNargsCheck(nargs, 4)
-	   && pyArgInt(args[0], &va.srcFd)
-	   && pyArgInt(args[1], &va.audFd)
-	   && pyArgInt(args[2], &va.naudFd)
-	   && (va.p.srcName = PyUnicode_AsUTF8AndSize(args[3], (Py_ssize_t*)&va.p.srcNameZ))
+	if(pyNargsCheck(pyNargs, 4)
+	   && pyArgInt(pyArgs[0], &args.srcFd)
+	   && pyArgInt(pyArgs[1], &args.audFd)
+	   && pyArgInt(pyArgs[2], &args.naudFd)
+	   && (args.p.srcName = PyUnicode_AsUTF8AndSize(pyArgs[3], (Py_ssize_t*)&args.p.srcNameZ))
 	   ) {
-		if(! (e = aufiNaudVerifyFd(&va))) {
+		if(! (e = aufiNaudVerifyFd(&args))) {
 			Py_RETURN_NONE;
 		}
-		else aufiPyExceptionSet(e, va.eSys);
+		else aufiPyExceptionSet(e, args.eSys);
 	}
 	return NULL;
 }
+
+//-------------------------------------------------------------------------------------------------------------
+// Aufi*Parse
+//-------------------------------------------------------------------------------------------------------------
+
+//$! def parseFunCCode(_acc, iden):
+static PyObject *aufi`iden`Parse_PyMethod(PyObject *self, PyObject *const *pyArgs, Py_ssize_t pyNargs) {
+	AufiParseArgs args;
+	int e;
+	
+	if(pyNargsCheck(pyNargs, 16)
+	   && pyArgInt(pyArgs[0], &pa.p.srcFd)
+	   && pyArgInt(pyArgs[1], &pa.p.audFd)
+	   && pyArgInt(pyArgs[2], &pa.p.naudFd)
+	   && (pa.p.chunkr = AufiChunkr_PyGetKern(pyArgs[3]))
+	   && pyArgSize_t(pyArgs[4], &pa.p.audHeadZ)
+	   && (pa.p.srcName = PyUnicode_AsUTF8AndSize(pyArgs[5], (Py_ssize_t*)&pa.p.srcNameZ))
+	   && (pa.flacCbs = AufiFlacParseCbs_PyGetKern(pyArgs[6]))
+	   && (pa.flacState = AufiFlacParseState_PyGetKern(pyArgs[7]))
+	   && (pa.frameCbs = AufiFlacFrameParseCbs_PyGetKern(pyArgs[8]))
+	   && (pa.frameState = AufiFlacFrameParseState_PyGetKern(pyArgs[9]))
+	   && (pa.metaCbs = AufiFlacMetaParseCbs_PyGetKern(pyArgs[10]))
+	   && (pa.metaState = AufiFlacMetaParseState_PyGetKern(pyArgs[11]))
+	   && (pa.apev2Cbs = AufiApev2ParseCbs_PyGetKern(pyArgs[12]))
+	   && (pa.id3v1Cbs = AufiId3v1ParseCbs_PyGetKern(pyArgs[13]))
+	   && (pa.id3v2Cbs = AufiId3v2ParseCbs_PyGetKern(pyArgs[14]))
+	   && (pa.lyrics3v2Cbs = AufiLyrics3v2ParseCbs_PyGetKern(pyArgs[15]))
+	   ) {
+		pa.p.parseSrc = (AufiParseSrc*)aufiFlacParseSrc;
+		if(! (e = aufiParse(&pa.p))) {
+			Py_RETURN_NONE;
+		}
+		else aufiPyExceptionSet(e, pa.p.eSys);
+	}
+	return NULL;
+}
+struct AufiParseArgs {
+	// input
+	int srcFd;
+	int audFd;
+	int naudFd;
+	AufiChunkr *chunkr;
+	size_t audHeadZ;
+	const char *srcName;
+	size_t srcNameZ;
+	
+	// state
+	size_t srcZ;
+	const uint8_t *src;
+	size_t audZ;
+	uint8_t *aud;
+	size_t naudZ;
+	uint8_t *naud;
+	int eSys;
+};
+
 
 //-----------------------------------------------------------------------------------------------------------------------
 // codegen
@@ -106,6 +161,29 @@ aufiPyNaudVerifyFdMethod(PyObject *self, PyObject *const *args, Py_ssize_t nargs
 
 //$! def idenPy(iden):
 //$!     return re.sub(r'^aufi', '', iden, count=1, flags=re.I)
+
+//$! def cbsSetr(_acc, stru, cbV):
+static int AufiPy_`stru.idenS`_CbsSetr(AufiPy_`stru.idenS`_BaseObject *self, PyObject *val, void *closure) {
+	`stru.iden`Cbs *cbs = &self->ptr->cbs;
+	memset(cbs, 0, sizeof(*cbs));
+	//$B     for cb in cbV:
+	if((cbs->`cb.idenS`Arg = PyObject_GetAttrString(val, "`cb.idenS`"))) {
+		cbs->`cb.idenS` = (`cb.iden`*)`cb.mfun.iden`;
+	}
+	else PyErr_Clear();
+	//$B         pass
+	return (PyObject*)self;
+}
+//$B     pass
+
+//$! def cbsDealloc(_acc, stru, cbV):
+static void AufiPy_`stru.idenS`_CbsDealloc(AufiPy_`stru.idenS`_BaseObject *self) {
+	`stru.iden`Cbs *cbs = &self->ptr->cbs;
+	//$B     for cb in cbV:
+    Py_XDECREF(cbs->`cb.idenS`Arg);
+	//$B         pass
+}
+//$B     pass
 
 //$! idenF = lambda sti: sti.iden
 //$! for mfun in aufiPy_h.env.mfunBySig.values():
@@ -125,8 +203,13 @@ int `mfun.iden`(`aufiPy_h.env.paramS(mfun.mtypV)`) {
 //$! for genr in aufiPy_h.env.genrV:
 //$!     if (cbV := genr.env.cbV):
 //$!         iden = genr.env.parseCbsIden
-static PyObject *`iden`_PyNew(PyTypeObject *subtype, PyObject *args, PyObject *kwds)
-{
+
+
+static PyObject *`ps.iden`_PyGet_`mtyp.stiV[0].iden`(`ps.iden`_PyObject *self, void *closure) {
+    return `mtyp.pyObjCode(fieldF)`;
+}
+
+static PyObject *`iden`_CbsSet(PyTypeObject *subtype, PyObject *args, PyObject *kwds) {
     `iden`_PyObject *self;
     PyObject *cbsPyo;
 	
@@ -163,8 +246,21 @@ PyTypeObject `iden`_PyType = {
     .tp_new = (newfunc)`iden`_PyNew,
 };
 //$B         pass
-//$!     if None is not (ps := genr.env.parseState):
-static PyObject *`ps.iden`_PyNew(PyTypeObject *subtype, PyObject *args, PyObject *kwds) {
+//$!     if None is not (ps := genr.env.parseStruct):
+static PyObject *AufiPy_Chunkr_NewChild(AufiChunkr *kern, AufiChildRefr *upChildRefr) {
+	AufiPy_Chunkr_Object *self;
+	if((self = (AufiPy_Chunkr_Object*)AufiPy_Chunkr_Type->tp_alloc(AufiPy_Chunkr_Type, 0))) {
+		self->kern = kern;
+        `ps.iden`Init(&self->kern);
+		self->upChildRefr = upChildRefr;
+		return (PyObject*)self;
+	}
+	else PyErr_NoMemory();
+}
+
+
+
+static PyObject *AufiPy_`ps.iden`_StoNew(PyTypeObject *subtype, PyObject *args, PyObject *kwds) {
     `ps.iden`_PyObject *self;
 	
     if((self = (`ps.iden`_PyObject*)subtype->tp_alloc(subtype, 0))) {
@@ -275,6 +371,48 @@ aufiPyMp3ParseMethod(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
 	return NULL;
 }
 
+static PyObject *aufiPy_Mp3Parse_New(PyTypeObject *subtype, PyObject *args, PyObject *kwds) {
+	AufiPy_Mp3Parse_Object *self;
+	
+    if((self = (AufiPy_Mp3Parse_Object*)subtype->tp_alloc(subtype, 0))) {
+        aufiMp3ParseInit(&self->kern);
+		self->pyChunkr = aufiPy_Chunkr_NewChild(&self->p.chunkr, &self->childRefr);
+		return (PyObject*)self;
+    }
+    else PyErr_NoMemory();
+    return NULL;
+}
+
+static void aufiPy_Mp3Parse_Dealloc(AufiPy_Mp3Parse_Object *self) {
+	// release python references to all children. AufiChildRefr will take care of rest of deallocation
+	Py_DECREF(self->pyChunkr);
+}
+
+static void aufiPy_Mp3ParseChildRefr0(AufiPy_Mp3Parse_Object *self) {
+	aufiMp3ParseUninit(&self->kern);
+    PyObject_Del(self);
+}
+
+static PyObject *aufiPy_Mp3Parse_Get_chunkr(aufiMp3_PyObject *self, void *closure) {
+	Py_INCREF(self->pyChunkr);
+	return self->pyChunkr;
+}
+
+PyGetSetDef aufiPy_Mp3Parse_GetSetDefs[] = {
+    { "chunkr", (getter)aufiPy_Mp3Parse_Get_chunkr, NULL, NULL, NULL },
+    { NULL, NULL, NULL, NULL, NULL }
+};
+
+PyTypeObject aufiPy_Mp3Parse_Type = {
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    .tp_name = "`_bi.pyModuleName()`.Mp3Parse",
+    .tp_basicsize = sizeof(aufiPy_Mp3Parse_Object),
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_dealloc = (destructor)aufiPy_Mp3Parse_Dealloc,
+    .tp_getset = aufiPy_Mp3Parse_GetSetDefs,
+    .tp_new = (newfunc)aufiPy_Mp3Parse_New,
+};
+
 //-------------------------------------------------------------------------------------------------------------
 // Mp4Parse
 //-------------------------------------------------------------------------------------------------------------
@@ -311,8 +449,8 @@ aufiPyMp4ParseMethod(PyObject *self, PyObject *const *args, Py_ssize_t nargs)
 static int aufiPyGlobalInitd = 0;
 
 static PyMethodDef aufiPyMethodDefs[] = {
-	{ "ctypes", (PyCFunction)aufiPyCtypesMethod, METH_FASTCALL, NULL },
-	{ "naudVerifyFd", (PyCFunction)aufiPyNaudVerifyFdMethod, METH_FASTCALL, NULL },
+	{ "ctypes", (PyCFunction)ctypes_PyMethod, METH_FASTCALL, NULL },
+	{ "naudVerifyFd", (PyCFunction)aufiNaudVerifyFd_PyMethod, METH_FASTCALL, NULL },
 	{ "flacParse", (PyCFunction)aufiPyFlacParseMethod, METH_FASTCALL, NULL },
 	{ "mp3Parse", (PyCFunction)aufiPyMp3ParseMethod, METH_FASTCALL, NULL },
 	{ "mp4Parse", (PyCFunction)aufiPyMp4ParseMethod, METH_FASTCALL, NULL },

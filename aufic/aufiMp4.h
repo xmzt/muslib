@@ -2,15 +2,28 @@
 #define AUFIMP4_H
 
 //$! _bi.alsoRel('aufiMp4Parse.c')
+//$! import butil
 
 #include "aufiParse.h"
 #include "bitutil.h"
+
+// ISO/IEC 14496-12:2005 used as reference for most box types
+// ISO/IEC 14496-14:2003 used as reference for mp4a
 
 //-----------------------------------------------------------------------------------------------------------------------
 // ParseCbs
 //-----------------------------------------------------------------------------------------------------------------------
 
 //$!
+typedef struct {
+	unsigned int esId;
+	unsigned int flagStreamPriority;
+	unsigned int dependsOnEsId;
+	const uint8_t *urlA;
+	const uint8_t *urlE;
+	unsigned int ocrEsId;
+} AufiMp4EsDescriptor;
+
 typedef int AufiMp4Cb_parseE(void *arg, size_t pos, int e);
 typedef int AufiMp4Cb_otherByte(void *arg, size_t pos, uint8_t byte);
 typedef int AufiMp4Cb_otherChunk(void *arg, size_t pos);
@@ -19,6 +32,7 @@ typedef int AufiMp4Cb_boxHexdump(void *arg,
 								 BitId32 boxType,
 								 const uint8_t *payload,
 								 const uint8_t *payloadE);
+typedef int AufiMp4Cb_boxNimp(void *arg, size_t pos, size_t level, uint64_t boxZ, BitId32 boxType, BitId128 boxUuid);
 
 typedef int AufiMp4Cb_data(void *arg,
 						   BitId32 upType,
@@ -31,6 +45,7 @@ typedef int AufiMp4Cb_dref(void *arg,
 						   unsigned int version,
 						   unsigned int flags,
 						   uint32_t entryCount);
+typedef int AufiMp4Cb_esds(void *arg, unsigned int version, unsigned int flags, AufiMp4EsDescriptor *esDescriptor);
 typedef int AufiMp4Cb_ftypHead(void *arg, BitId32 majorBrand, BitId32 minorBrand);
 typedef int AufiMp4Cb_ftypCompat(void *arg, BitId32 brand);
 typedef int AufiMp4Cb_hdlr(void *arg,
@@ -130,37 +145,28 @@ typedef int AufiMp4Cb_url_(void *arg,
 						   unsigned int flags,
 						   const uint8_t *payload,
 						   const uint8_t *payloadE);
-
-typedef struct {
-	size_t otherByteN;
-	size_t otherChunkN;
-	BitId32 majorBrand;
-	BitId32 minorBrand;
-} AufiMp4ParseState;
-//$! cbV,parseState = aufiParse_h.env.cbVParseStateFromFrag(_frag)
+//$! cbV = butil.cbVFromScope(_bi.buildr.fragr.goStart(_bi.scope, _frag))
 //$! aufiParse_h.env.parseCbsStruct(_acc, (parseCbsIden := 'AufiMp4ParseCbs'), cbV)
-
-inline static int
-AufiMp4ParseStateInit(AufiMp4ParseState *self)
-{
-	self->otherByteN = 0;
-	self->otherChunkN = 0;
-	self->majorBrand.u32 = 0;
-	self->minorBrand.u32 = 0;
-	return 0;
-}
 
 //-----------------------------------------------------------------------------------------------------------------------
 // Parse
 //-----------------------------------------------------------------------------------------------------------------------
 
 typedef struct {
-	AufiParseArgs p;
-	AufiMp4ParseCbs *mp4Cbs;
-	AufiMp4ParseState *mp4State;
-} AufiMp4ParseArgs;
+	AufiMp4ParseCbs cbs;
+	size_t otherByteN;
+	size_t otherChunkN;
+	BitId32 majorBrand;
+	BitId32 minorBrand;
+} AufiMp4Parse;
+//$! _bi.buildr.fragr.goStart(_bi.scope, _frag)
 
-int
-aufiMp4ParseSrc(AufiMp4ParseArgs *self);
+inline static void aufiMp4ParseInit(AufiMp4Parse *self) {
+	//self->cbs 
+	self->otherByteN = 0;
+	self->otherChunkN = 0;
+	self->majorBrand.u32 = 0;
+	self->minorBrand.u32 = 0;
+}
 
 #endif

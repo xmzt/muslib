@@ -4,11 +4,9 @@
 // Parse
 //-----------------------------------------------------------------------------------------------------------------------
 
-int
-aufiApev2ParseSrc(AufiApev2ParseArgs *self)
-{
-	uint8_t *gSrcE = self->p.src + self->p.srcZ;
-	uint8_t *gSrc = self->p.src;
+int aufiApev2ParseSrc(AufiApev2Parse *self, AufiParseArgs *args) {
+	uint8_t *gSrcE = args->src + args->srcZ;
+	uint8_t *gSrc = args->src;
 	const uint8_t *gChunkE;
 	size_t gChunkZ;
 	// AufiE gAufiE;
@@ -33,20 +31,20 @@ aufiApev2ParseSrc(AufiApev2ParseArgs *self)
 	//$! def body(_acc, cb, lo, go):
  `go`MagicOk8:
 	if((`lo`srcA = gSrc + 32) > gSrcE) {
-		AufiCb(`cb`parseE, gSrc - self->p.src, AufiE_Apev2HeadIncomplete);
+		AufiCb(`cb`parseE, gSrc - args->src, AufiE_Apev2HeadIncomplete);
 		goto `go`FinChunkInvalid;
 	}
 	`lo`headVersion = BitU32L(gSrc + 8);
 	`lo`headSize = BitU32L(gSrc + 12);
 	`lo`headItemsN = BitU32L(gSrc + 16);
 	`lo`headFlags = BitU32L(gSrc + 20);
-	AufiCb(`cb`head, gSrc - self->p.src, `lo`headVersion, `lo`headSize, `lo`headItemsN, `lo`headFlags);
+	AufiCb(`cb`head, gSrc - args->src, `lo`headVersion, `lo`headSize, `lo`headItemsN, `lo`headFlags);
 	if(! (AufiApev2Flag_InHeader & `lo`headFlags)) {
-		AufiCb(`cb`parseE, gSrc - self->p.src, AufiE_Apev2InFooter);
+		AufiCb(`cb`parseE, gSrc - args->src, AufiE_Apev2InFooter);
 		goto `go`FinChunkInvalid;
 	}
 	if((gChunkE = `lo`srcA + `lo`headSize) > gSrcE) {
-		AufiCb(`cb`parseE, gSrc - self->p.src, AufiE_Apev2Incomplete);
+		AufiCb(`cb`parseE, gSrc - args->src, AufiE_Apev2Incomplete);
 		goto `go`FinChunkInvalid;
 	}
 	gChunkZ = gChunkE - gSrc;
@@ -54,7 +52,7 @@ aufiApev2ParseSrc(AufiApev2ParseArgs *self)
  `go`Item:
 	`lo`item = `lo`srcA;
 	if((`lo`srcA += 8) > gChunkE) {
-		if(`lo`srcA != gChunkE) AufiCb(`cb`parseE, `lo`item - self->p.src, AufiE_Apev2ItemHeadIncomplete);
+		if(`lo`srcA != gChunkE) AufiCb(`cb`parseE, `lo`item - args->src, AufiE_Apev2ItemHeadIncomplete);
 		goto `go`FinChunkOk;
 	}
 	if('A' == `lo`item[0]
@@ -71,16 +69,16 @@ aufiApev2ParseSrc(AufiApev2ParseArgs *self)
 	`lo`itemKey = `lo`srcA;
 	do {
 		if((`lo`srcA += 1) > gChunkE) {
-			AufiCb(`cb`parseE, `lo`item - self->p.src, AufiE_Apev2ItemKeyIncomplete);
+			AufiCb(`cb`parseE, `lo`item - args->src, AufiE_Apev2ItemKeyIncomplete);
 			goto `go`FinChunkOk;
 		}
 	} while(`lo`srcA[-1]);
 	`lo`itemVal = `lo`srcA;
 	if((`lo`srcA += `lo`itemHeadValZ) > gChunkE) {
-		AufiCb(`cb`parseE, `lo`item - self->p.src, AufiE_Apev2ItemValIncomplete);
+		AufiCb(`cb`parseE, `lo`item - args->src, AufiE_Apev2ItemValIncomplete);
 		goto `go`FinChunkOk;
 	}
-	AufiCb(`cb`item, `lo`item - self->p.src, `lo`itemHeadFlags, `lo`itemKey, `lo`itemVal - 1, `lo`itemVal, `lo`srcA);
+	AufiCb(`cb`item, `lo`item - args->src, `lo`itemHeadFlags, `lo`itemKey, `lo`itemVal - 1, `lo`itemVal, `lo`srcA);
 	goto `go`Item;
 
  `go`Foot:
@@ -88,10 +86,10 @@ aufiApev2ParseSrc(AufiApev2ParseArgs *self)
 	`lo`footSize = BitU32L(`lo`item + 12);
 	`lo`footItemsN = BitU32L(`lo`item + 16);
 	`lo`footFlags = BitU32L(`lo`item + 20);
-	AufiCb(`cb`foot, `lo`item - self->p.src, `lo`footVersion, `lo`footSize, `lo`footItemsN, `lo`footFlags);
+	AufiCb(`cb`foot, `lo`item - args->src, `lo`footVersion, `lo`footSize, `lo`footItemsN, `lo`footFlags);
 	goto `go`FinChunkOk;
 	//$B     pass
-	//$! body(_acc, 'self->apev2Cbs->', 'local.', '')
+	//$! body(_acc, 'self->cbs.', 'local.', '')
 
  FinChunkOk: return 0;
  FinChunkInvalid: return AufiE_Apev2;

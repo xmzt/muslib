@@ -5,7 +5,9 @@
 //$! from crpy_xmzt import castlib
 
 #include "aufiBase.h"
-#include "aufiChunk.h"
+
+#define XXH_STATIC_LINKING_ONLY
+#include "xxhash.h"
 
 #include <sys/types.h>
 #include <errno.h>
@@ -23,15 +25,60 @@
 #define SRCOFF(x) ((x) - self->p.src)
 
 //-------------------------------------------------------------------------------------------------------------
+// AufiChunk
+//-------------------------------------------------------------------------------------------------------------
+
+typedef enum {
+	AufiChunkType_Fin = 0,
+	AufiChunkType_Aud,
+	AufiChunkType_Naud
+} AufiChunkType;
+
+typedef struct {
+	size_t type;
+	size_t srcPos;
+	size_t dstPos;
+} AufiChunk;
+
+//$!
+typedef struct {
+	AufiChunk *chunksA;
+	AufiChunk *chunksE;
+	AufiChunk *chunksC;
+	size_t audZ;
+	size_t naudZ;
+	XXH128_hash_t audHash;
+} AufiChunkr;
+//$! _bi.buildr.fragr.goStart(_bi.scope, _frag)
+
+int aufiChunkrInit(AufiChunkr *self, size_t chunksNInit, int *eSys);
+
+void aufiChunkrUninit(AufiChunkr *self);
+
+int aufiChunkrGrow(AufiChunkr *self, int *eSys);
+
+int aufiChunkrAdd(AufiChunkr *self, size_t type, size_t srcPos, size_t dstPos);
+
+inline static size_t aufiChunkrSizeEA(AufiChunkr *self) {
+	return (uint8_t*)self->chunksE - (uint8_t*)self->chunksA;
+}
+
+inline static size_t aufiChunkrSizeCA(AufiChunkr *self) {
+	return (uint8_t*)self->chunksC - (uint8_t*)self->chunksA;
+}
+
+inline static AufiChunk *aufiChunkrLast(AufiChunkr *self) {
+	return self->chunksC - 1;
+}
+
+//-------------------------------------------------------------------------------------------------------------
 // AufiParse
 //-------------------------------------------------------------------------------------------------------------
 
 typedef struct AufiParseArgs AufiParseArgs;
-typedef int AufiParseSrc(AufiParseArgs *self);
+typedef int AufiParseSrc(void *arg, AufiParseArgs *self);
 
 struct AufiParseArgs {
-	AufiParseSrc *parseSrc;
-	
 	// input
 	int srcFd;
 	int audFd;
@@ -40,7 +87,7 @@ struct AufiParseArgs {
 	size_t audHeadZ;
 	const char *srcName;
 	size_t srcNameZ;
-
+	
 	// state
 	size_t srcZ;
 	const uint8_t *src;
@@ -48,12 +95,17 @@ struct AufiParseArgs {
 	uint8_t *aud;
 	size_t naudZ;
 	uint8_t *naud;
-	
 	int eSys;
 };
-	
-int
-aufiParse(AufiParseArgs *self);
+
+int aufiParse(AufiParseArgs *self, AufiParseSrc *parseSrc, void *parseSrcArg);
+
+//int
+//aufiParseArgsWriteNaudHeadFdName(AufiParseArgs *self,
+//								 int naudFolderFd,
+//								 const char *naudName,
+//								 const void *srcName,
+//								 size_t srcNameZ);
 
 //-------------------------------------------------------------------------------------------------------------
 // AufiNaud
@@ -78,8 +130,7 @@ typedef struct {
 	size_t srcNameZ;
 } AufiNaudVerifyArgs;
 
-int
-aufiNaudVerify(AufiNaudVerifyArgs *self);
+int aufiNaudVerify(AufiNaudVerifyArgs *self);
 
 typedef struct {
 	AufiNaudVerifyArgs p;
@@ -89,27 +140,12 @@ typedef struct {
 	int eSys;
 } AufiNaudVerifyFdArgs;
 
-int
-aufiNaudVerifyFd(AufiNaudVerifyFdArgs *self);
+int aufiNaudVerifyFd(AufiNaudVerifyFdArgs *self);
 
 //-------------------------------------------------------------------------------------------------------------
 // codegen helpers
 //-------------------------------------------------------------------------------------------------------------
 
-//$! def cbVParseStateFromFrag(src):
-//$!     scope = (fragr := _bi.buildr.fragr).goStartScopeNew0(src)
-//$!     cbV = []
-//$!     parseState = None
-//$!     for k,v in scope.items():
-//$!         if str is type(k):
-//$!             if 'Cb_' in v.iden:
-//$!                 cbV.append(v)
-//$!             elif v.iden.endswith('ParseState'):
-//$!                 # uniq1norm reduces arrays to the same regardless of size
-//$!                 v.mtypV = fragr.symtab.mtypTrieMtypVFromStiV([], v.child.items, lambda sti: id(sti.child.uniq1Norm(fragr.symtab)))
-//$!                 parseState = v
-//$!     return cbV, parseState
-//$!
 //$! def parseCbsStruct(_acc, iden, cbV):
 typedef struct {
 	//$!     for cb in cbV:

@@ -9,6 +9,7 @@ import re
 class PplibException(Exception): pass
 class AtCmdInvalidPplibException(PplibException): pass
 
+
 #------------------------------------------------------------------------------------------------------------------------
 # Pp
 #
@@ -33,6 +34,7 @@ class PpBuildItem(buildlib.BuildItem):
         super().__init__(buildr, tar) 
         self.depTar = depTar
         self.dstPathFromDep = dstPathFromDep
+        self.scope = buildr.scope0.dn()
         
     def goDstPath(self):
         self.dep = self.depTarGo(self.depTar, 'goDstPath')
@@ -143,8 +145,8 @@ class PpBuildItem(buildlib.BuildItem):
                 # require leading whitespace for #include
                 if -1 != m0.start(1):
                     if None is not (t := self.tarRel(body)):
-                        iden = os.path.basename(t).replace('.', '_')
-                        codeV.append(f'{iden} = _bi.depTarGoAll({repr(t)})\n')
+                        iden = os.path.basename(body).replace('.', '_')
+                        codeV.append(f'{iden} = _bi.includeTar({repr(t)})\n')
                 posC = m0.end(0) if -1 != m0.start(10) else m0.end(2)
                 continue
             elif None is not (op := m0.group(4)):
@@ -195,7 +197,7 @@ class PpBuildItem(buildlib.BuildItem):
 
         # output final literal
         if len(src) > posA:
-            codeV.append(f'_acc(_frag := _src[{posA}:])')
+            codeV.append(f'_acc(_frag := _src[{posA}:])\n')
         return ''.join(codeV)
 
     #--------------------------------------------------------------------------------------------------------------------
@@ -221,3 +223,13 @@ class PpBuildItem(buildlib.BuildItem):
     def alsoRel(self, rel):
         self.alsoTar(self.tarRel(rel))
 
+    def includeTar(self, tar):
+        dep = self.depTarGoAll(tar)
+        dep.scopeDnUpdate(self.scope)
+        self.includeCb(dep)
+        return dep
+        
+    def includeCb(self, dep): pass
+
+    def scopeDnUpdate(self, sco):
+        sco.update(self.scope)

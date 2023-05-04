@@ -102,13 +102,13 @@ class Parser(util.ParserBase):
     #--------------------------------------------------------------------------------------------------------------------
     # tagBytes
 
-    def tagBytes(self, tagCxt, bufZ):
+    def tagBytes(self, bufZ):
         vendor = self.main.flacTagVendor.encode()
-        items = [x.encode() for x in (f'ARTIST={tagCxt.artist}',
-                                      f'DATE={tagCxt.year}',
-                                      f'ALBUM={tagCxt.album}',
-                                      f'TRACKNUMBER={tagCxt.trackno}',
-                                      f'TITLE={tagCxt.title}')]
+        items = [x.encode() for x in (f'ARTIST={self.tagCxt.artist}',
+                                      f'DATE={self.tagCxt.year}',
+                                      f'ALBUM={self.tagCxt.album}',
+                                      f'TRACKNUMBER={self.tagCxt.trackno}',
+                                      f'TITLE={self.tagCxt.title}')]
     
         dst = bytearray(4)
         dst[0] = Typ.VorbisComment

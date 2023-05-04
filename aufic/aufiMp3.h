@@ -2,6 +2,7 @@
 #define AUFIMP3_H
 
 //$! _bi.alsoRel('aufiMp3Parse.c')
+//$! import butil
 
 #include "aufiParse.h"
 #include "aufiMpeg1AudFrame.h"
@@ -22,45 +23,37 @@
 typedef int AufiMp3Cb_otherChunk(void *arg, size_t pos, size_t size, const uint8_t *byts, const uint8_t *bytsE);
 typedef int AufiMp3Cb_frameChunk(void *arg, size_t pos, size_t size);
 typedef int AufiMp3Cb_eof(void *arg, size_t pos);
-
-typedef struct {
-	size_t otherByteN;
-	size_t otherChunkN;
-	size_t frameChunkN;
-} AufiMp3ParseState;
-//$! cbV,parseState = aufiParse_h.env.cbVParseStateFromFrag(_frag)
+//$! cbV = butil.cbVFromScope(_bi.buildr.fragr.goStart(_bi.scope, _frag))
 //$! aufiParse_h.env.parseCbsStruct(_acc, (parseCbsIden := 'AufiMp3ParseCbs'), cbV)
-
-inline static int
-AufiMp3ParseStateInit(AufiMp3ParseState *self)
-{
-	self->otherByteN = 0;
-	self->otherChunkN = 0;
-	self->frameChunkN = 0;
-	return 0;
-}
 
 //-----------------------------------------------------------------------------------------------------------------------
 // Parse
 //-----------------------------------------------------------------------------------------------------------------------
 
+//$!
 typedef struct {
-	AufiParseArgs p;
-	AufiMp3ParseCbs *mp3Cbs;
-	AufiMp3ParseState *mp3State;
-	AufiMpeg1AudFrameParseCbs *frameCbs;
-	AufiMpeg1AudFrameParseState *frameState;
-	AufiApev2ParseCbs *apev2Cbs;
-	//AufiApev2ParseState *apev2State;
-	AufiId3v1ParseCbs *id3v1Cbs;
-	//AufiId3v1ParseState *id3v1State;
-	AufiId3v2ParseCbs *id3v2Cbs;
-	//AufiId3v2ParseState *id3v2State;
-	AufiLyrics3v2ParseCbs *lyrics3v2Cbs;
-	//AufiLyrics3v2ParseState *lyrics3v2State;
-} AufiMp3ParseArgs;
+	AufiMp3ParseCbs cbs;
+	AufiMpeg1AudFrameParse frame;
+	AufiApev2Parse apev2;
+	AufiId3v1Parse id3v1;
+	AufiId3v2Parse id3v2;
+	AufiLyrics3v2Parse lyrics3v2;
+	size_t otherByteN;
+	size_t otherChunkN;
+	size_t frameChunkN;
+} AufiMp3Parse;
+//$! _bi.buildr.fragr.goStart(_bi.scope, _frag)
 
-int
-aufiMp3ParseSrc(AufiMp3ParseArgs *self);
+inline static void aufiMp3ParseInit(AufiMp3Parse *self) {
+	//self->cbs 
+	aufiMpeg1AudFrameParseInit(&self->frame);
+	aufiApev2ParseInit(&self->apev2);
+	aufiId3v1ParseInit(&self->id3v1);
+	aufiId3v2ParseInit(&self->id3v2);
+	aufiLyrics3v2ParseInit(&self->lyrics3v2);
+	self->otherByteN = 0;
+	self->otherChunkN = 0;
+	self->frameChunkN = 0;
+}
 
 #endif

@@ -1,61 +1,49 @@
 #include "aufiPy.h"
 
 //-------------------------------------------------------------------------------------------------------------
-// AufiPyChunkr
+// AufiPy_Chunkr
 //-------------------------------------------------------------------------------------------------------------
 
-static void
-AufiChunkr_PyDealloc(AufiChunkr_PyObject *self)
-{
-	aufiChunkrUninit(&self->kern);
-    PyObject_Del(self);
+static void AufiPy_Chunkr_Dealloc(AufiChunkr_PyObject *self) {
+	AufiChildRefrDec(self->upChildRefr);
+	//PyObject_Del(self);
 }
 
-static PyObject *
-AufiChunkr_PyNew(PyTypeObject *subtype, PyObject *args, PyObject *kwds)
-{
-	unsigned long itemsNInit;
-    AufiChunkr_PyObject *self;
-	int e;
-	int eSys;
-	
-	if((self = (AufiChunkr_PyObject*)subtype->tp_alloc(subtype, 0))) {
-		if(PyArg_ParseTuple(args, "k", &itemsNInit)) {
-			if(! (e = aufiChunkrInit(&self->kern, itemsNInit, &eSys))) {
-				return (PyObject*)self;
-			} else aufiPyExceptionSet(e, eSys);
-		}
-		subtype->tp_free(self);
+static PyObject *AufiPy_Chunkr_NewChild(AufiChunkr *kern, AufiChildRefr *upChildRefr) {
+	AufiPy_Chunkr_Object *self;
+	if((self = (AufiPy_Chunkr_Object*)AufiPy_Chunkr_Type->tp_alloc(AufiPy_Chunkr_Type, 0))) {
+		self->kern = kern;
+		self->upChildRefr = upChildRefr;
+		return (PyObject*)self;
 	}
 	else PyErr_NoMemory();
-	return NULL;
 }
 
-static PyObject *AufiChunkr_PyGet_audHash(AufiChunkr_PyObject *self, void *closure) {
-	return PyBytes_FromStringAndSize((char*)&self->kern.audHash, sizeof(self->kern.audHash));
+static PyObject *AufiPy_Chunkr_Get_audHash(AufiPy_Chunkr_Object *self, void *closure) {
+	return PyBytes_FromStringAndSize((char*)&self->kern->audHash, sizeof(self->kern->audHash));
 }
 
-static PyObject *AufiChunkr_PyGet_audz(AufiChunkr_PyObject *self, void *closure) {
-	return PyLong_FromUnsignedLong(self->kern.audZ);
+static PyObject *AufiPy_Chunkr_Get_audz(AufiPy_Chunkr_Object *self, void *closure) {
+	return PyLong_FromUnsignedLong(self->kern->audZ);
 }
 
-static PyObject *AufiChunkr_PyGet_naudz(AufiChunkr_PyObject *self, void *closure) {
-	return PyLong_FromUnsignedLong(self->kern.naudZ);
+static PyObject *AufiPy_Chunkr_Get_naudz(AufiPy_Chunkr_Object *self, void *closure) {
+	return PyLong_FromUnsignedLong(self->kern->naudZ);
 }
 
-static PyGetSetDef AufiChunkr_PyGetSetDefs[] = {
-	{ "audHash", (getter)AufiChunkr_PyGet_audHash, NULL, NULL, NULL },
-	{ "audZ", (getter)AufiChunkr_PyGet_audz, NULL, NULL, NULL },
-	{ "naudZ", (getter)AufiChunkr_PyGet_naudz, NULL, NULL, NULL },
+static PyGetSetDef AufiPy_Chunkr_GetSetDefs[] = {
+	{ "audHash", (getter)AufiPy_Chunkr_Get_audHash, NULL, NULL, NULL },
+	{ "audZ", (getter)AufiPy_Chunkr_Get_audz, NULL, NULL, NULL },
+	{ "naudZ", (getter)AufiPy_Chunkr_Get_naudz, NULL, NULL, NULL },
 	{ NULL, NULL, NULL, NULL, NULL }
 };
 
-PyTypeObject AufiChunkr_PyType = {
+PyTypeObject AufiPy_Chunkr_Type = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0)
 	.tp_name = "aufiC.Chunkr",
-    .tp_basicsize = sizeof(AufiChunkr_PyObject),
+    .tp_basicsize = sizeof(AufiPy_Chunkr_Object),
     .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_dealloc = (destructor)AufiChunkr_PyDealloc,
-    .tp_getset = AufiChunkr_PyGetSetDefs,
-    .tp_new = (newfunc)AufiChunkr_PyNew,
+    .tp_dealloc = (destructor)AufiPy_Chunkr_Dealloc,
+    .tp_getset = AufiPy_Chunkr_GetSetDefs,
+    //.tp_new = (newfunc)AufiPy_Chunkr_New,
 };

@@ -2,6 +2,7 @@
 #define AUFIFLACMETA_H
 
 //$! from aufi_xmzt import flacMetaBase
+//$! import butil
 
 #include "aufiParse.h"
 #include "bitutil.h"
@@ -57,18 +58,24 @@ typedef int AufiFlacMetaCb_vorbisCommentItem(void *arg,
 											 size_t pos,
 											 const uint8_t *comment,
 											 const uint8_t *commentE);
-
-typedef struct {
-	size_t streaminfosN;
-	AufiFlacMetaStreaminfo streaminfo;
-} AufiFlacMetaParseState;
-//$! cbV,parseState = aufiParse_h.env.cbVParseStateFromFrag(_frag)
+//$! cbV = butil.cbVFromScope(_bi.buildr.fragr.goStart(_bi.scope, _frag))
 //$! aufiParse_h.env.parseCbsStruct(_acc, (parseCbsIden := 'AufiFlacMetaParseCbs'), cbV)
 
-inline static void
-AufiFlacMetaParseStateInit(AufiFlacMetaParseState *state) {
-	state->streaminfosN = 0;
-	// state->streaminfo
+//-----------------------------------------------------------------------------------------------------------------------
+// Parse
+//-----------------------------------------------------------------------------------------------------------------------
+
+typedef struct {
+	AufiFlacMetaParseCbs cbs;
+	size_t streaminfosN;
+	AufiFlacMetaStreaminfo streaminfo;
+} AufiFlacMetaParse;
+//$! _bi.buildr.fragr.goStart(_bi.scope, _frag)
+
+inline static void aufiFlacMetaParseInit(AufiFlacMetaParse *self) {
+	//self->cbs 
+	self->streaminfosN = 0;
+	// self->streaminfo
 }
 
 //-----------------------------------------------------------------------------------------------------------------------
@@ -92,18 +99,5 @@ typedef struct {
 
 inline static void
 aufiFlacMetaParseLocalInit(AufiFlacMetaParseLocal *local) {}
-
-//-----------------------------------------------------------------------------------------------------------------------
-// Parse
-//-----------------------------------------------------------------------------------------------------------------------
-
-typedef struct {
-	AufiParseArgs p;
-	AufiFlacMetaParseCbs *flacMetaCbs;
-	AufiFlacMetaParseState *flacMetaState;
-} AufiFlacMetaParseArgs;
-
-int
-aufiFlacMetaParse(AufiFlacMetaParseArgs *self);
 
 #endif

@@ -8,13 +8,53 @@
 #include <unistd.h>
 #include <stdio.h>
 
+//-------------------------------------------------------------------------------------------------------------
+// AufiChunkr
+//-------------------------------------------------------------------------------------------------------------
+
+int aufiChunkrInit(AufiChunkr *self, size_t chunksNInit, int *eSys) {
+	if((self->chunksA = (AufiChunk*)malloc(sizeof(AufiChunk) * chunksNInit))) {
+		self->chunksC = self->chunksA;
+		self->chunksE = self->chunksA + chunksNInit;
+		// self->audZ
+		// self->naudZ
+		// self->audHash
+		return 0;
+	} else AufiE_SYS_SET(*eSys, return AufiE_SysAlloc);
+}
+
+void aufiChunkrUninit(AufiChunkr *self) {
+	free(self->chunksA);
+}
+
+int aufiChunkrGrow(AufiChunkr *self, int *eSys) {
+	size_t n;
+	size_t z;
+	
+	n = self->chunksC - self->chunksA;
+	z = (self->chunksE - self->chunksA) * 2;
+	if((self->chunksA = (AufiChunk*)realloc(self->chunksA, sizeof(AufiChunk) * z))) {
+		self->chunksC = self->chunksA + n;
+		self->chunksE = self->chunksA + z;
+		return 0;
+	} else AufiE_SYS_SET(*eSys, return AufiE_SysAlloc);
+}
+
+int aufiChunkrAdd(AufiChunkr *self, size_t type, size_t srcPos, size_t dstPos) {
+	if(self->chunksC != self->chunksE) {
+		self->chunksC->type = type;
+		self->chunksC->srcPos = srcPos;
+		self->chunksC->dstPos = dstPos;
+		self->chunksC++;
+		return 0;
+	} else return AufiE_ChunksFull;
+}
+
 //-----------------------------------------------------------------------------------------------------------------------
 // AufiParse
 //-----------------------------------------------------------------------------------------------------------------------
 
-int
-aufiParse(AufiParseArgs *self)
-{
+int aufiParse(AufiParseArgs *self, AufiParseSrc *parseSrc, void *parseSrcArg) {
 	struct stat srcStat;
 	size_t chunksZ;
 	AufiNaudHead *naudHead;
@@ -24,18 +64,17 @@ aufiParse(AufiParseArgs *self)
 		self->srcZ = srcStat.st_size;
 		self->audZ = self->audHeadZ + self->srcZ;
 		if(! ftruncate(self->audFd, self->audZ)) {
-			self->naudZ = sizeof(AufiNaudHead) + self->srcZ + self->srcNameZ + 1 + aufiChunkrChunksEA(self->chunkr);
+			self->naudZ = sizeof(AufiNaudHead) + self->srcZ + self->srcNameZ + 1 + aufiChunkrSizeEA(self->chunkr);
 			if(! ftruncate(self->naudFd, self->naudZ)) {
 				if((self->src = (uint8_t*)mmap(NULL, self->srcZ, PROT_READ, MAP_SHARED, self->srcFd, 0))) {
 					if((self->aud = (uint8_t*)mmap(NULL, self->audZ, PROT_READ | PROT_WRITE, MAP_SHARED,
 												   self->audFd, 0))) {
 						if((self->naud = (uint8_t*)mmap(NULL, self->naudZ, PROT_READ | PROT_WRITE, MAP_SHARED,
 														self->naudFd, 0))) {
-							// mmap finished. ready to call parseSrc.
-							if(! (e = self->parseSrc(self))) {
+							if(! (e = self->parseSrc(parseSrcArg, self))) {
 								// callback returned ok, meaning we can finish chunking the file
 								// naud: write head
-								chunksZ = aufiChunkrChunksCA(self->chunkr);
+								chunksZ = aufiChunkrSizeCA(self->chunkr);
 								naudHead = (AufiNaudHead*)self->naud;
 								naudHead->magic = AUFI_NAUD_MUSLIB00_CC64 | sizeof(size_t);
 								naudHead->srcNamePosA = self->chunkr->naudZ;
@@ -71,9 +110,7 @@ aufiParse(AufiParseArgs *self)
 // AufiNaud
 //-------------------------------------------------------------------------------------------------------------
 
-int
-aufiNaudVerify(AufiNaudVerifyArgs *self)
-{
+int aufiNaudVerify(AufiNaudVerifyArgs *self) {
 	AufiNaudHead *head;
 	AufiChunk *chunk;
 	AufiChunk *chunksE;
@@ -117,9 +154,7 @@ aufiNaudVerify(AufiNaudVerifyArgs *self)
 	return AufiE_VerifyChunkFinMissing;
 }
 
-int
-aufiNaudVerifyFd(AufiNaudVerifyFdArgs *self)
-{
+int aufiNaudVerifyFd(AufiNaudVerifyFdArgs *self) {
 	struct stat srcStat;
 	struct stat audStat;
 	struct stat naudStat;

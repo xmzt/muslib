@@ -1,12 +1,12 @@
 import os
 import sys
-rootDir = os.path.normpath(os.path.join(os.path.dirname(__file__), '../..'))
 if True: # dev mode
+    xmztPath = os.path.expanduser('~/xmzt')
     sys.path[1:1] = [
-        #os.path.join(rootDir, 'muslib/build/lib.linux-x86_64-cpython-310'),
-        os.path.join(rootDir, 'muslib/src'),
-        os.path.join(rootDir, 'crpy/src'),
-        os.path.join(rootDir, 'pylib0/src'),
+        #os.path.join(xmztPath, 'muslib/build/lib.linux-x86_64-cpython-310'),
+        os.path.join(xmztPath, 'muslib/src'),
+        os.path.join(xmztPath, 'crpy/src'),
+        os.path.join(xmztPath, 'pylib0/src'),
     ]
 
 import buildlib
@@ -60,12 +60,44 @@ class MyBuildr(buildlib.Buildr):
             return self.itemNewByExt[m.group(1)](tar)
         else:
             return self.itemNew('file:' + tar).alias(tar)
-    
+
 #------------------------------------------------------------------------------------------------------------------------
 # MyBuildExt
 #------------------------------------------------------------------------------------------------------------------------
 
 class MyBuildExt(_st_build_ext):
+    def mybuild(self, ext, tar, meth):
+        buildr = MyBuildr(ext)
+        
+        buildr.logr = loglib.Logr5File()
+        buildr.logCacheRead = buildr.logCacheRead1
+        buildr.logCacheNew = buildr.logCacheNew1
+        buildr.logCacheWrite = buildr.logCacheWrite1
+        buildr.logMkdir = buildr.logMkdir1
+        #buildr.logItemGo = buildr.logItemGo1
+        buildr.logItemFresh = buildr.logItemFresh1
+        buildr.logPpDstWrite = buildr.logPpDstWrite1
+
+        buildr.dstPathOpt = optslib.PathOpt(self.build_temp)
+        buildr.cachePathOpt = buildr.dstPathOpt.sub('cache')
+        buildr.tarRootPathOpt = optslib.RelPathOpt(os.getcwd())
+        buildr.fragr = cfraglib.Fragr(specSlst=1)
+        buildr.scope0 = ctyplib.initScope0(buildr.fragr)
+        buildr.compilerInit(self, ext, _du_spawn)
+        buildr.importSnifr = buildlib.ImportSnifr()
+        sys.meta_path.insert(0, buildr.importSnifr)
+        try:
+            buildr.cacheReadOrNew()
+            try:
+                buildr.tarGo(tar, meth)
+            except:
+                buildr.logr.traceback(*sys.exc_info())
+                raise
+            finally:
+                buildr.cacheWrite()
+        finally:
+            sys.meta_path.remove(buildr.importSnifr)
+
     def build_extension(self, ext):
         ext._convert_pyx_sources_to_lang()
         _compiler = self.compiler
@@ -80,53 +112,23 @@ class MyBuildExt(_st_build_ext):
             self.compiler = _compiler
 
     def build_extension_1(self, ext):
-        buildr = MyBuildr(ext)
-
-        buildr.logr = loglib.Logr5File()
-        buildr.logCacheRead = buildr.logCacheRead1
-        buildr.logCacheNew = buildr.logCacheNew1
-        buildr.logCacheWrite = buildr.logCacheWrite1
-        buildr.logMkdir = buildr.logMkdir1
-        #buildr.logItemGo = buildr.logItemGo1
-        buildr.logItemFresh = buildr.logItemFresh1
-        buildr.logPpDstWrite = buildr.logPpDstWrite1
-
-        buildr.dstPathOpt = optslib.PathOpt(self.build_temp)
-        buildr.cachePathOpt = buildr.dstPathOpt.sub('cache')
-        buildr.tarRootPathOpt = optslib.RelPathOpt(os.getcwd())
-
-        buildr.fragr = fragr = cfraglib.Fragr(castlib.Symtab())
-        ctyplib.fragrPopulate0(fragr)
-        buildr.compilerInit(self, ext, _du_spawn)
-        buildr.importSnifr = buildlib.ImportSnifr()
-        sys.meta_path.insert(0, buildr.importSnifr)
-        try:
-            buildr.cacheReadOrNew()
-            try:
-                buildr.tarGo('all', 'goDstPath')
-            except:
-                buildr.logr.traceback(*sys.exc_info())
-                raise
-            finally:
-                buildr.cacheWrite()
-        finally:
-            sys.meta_path.remove(buildr.importSnifr)
+        #self.mybuild(ext, 'all', 'goDstPath')
+        self.mybuild(ext, 'aufic/aufiPy.h', 'goAll')
 
 #------------------------------------------------------------------------------------------------------------------------
 # MyBuildMetaBackend
 #------------------------------------------------------------------------------------------------------------------------
 
 class MyBuildMetaBackend(_BuildMetaBackend):
+    cmdclass = { 'build_ext':MyBuildExt }
+    ext_modules = [
+        Extension(
+            name='aufiC',  # as it would be imported. may include packages/namespaces separated by `.`
+            sources=['aufic/aufiPy.c'], # MyBuildExt will include additional sources as referenced
+        ),
+    ]
     def run_setup(self, setup_script='setup.py'):
-        setup(
-            cmdclass = { 'build_ext':MyBuildExt },
-            ext_modules = [
-                Extension(
-                    name='aufiC',  # as it would be imported. may include packages/namespaces separated by `.`
-                    sources=['aufic/aufiPy.c'], # MyBuildExt will include additional sources as referenced
-                ),
-            ]
-        )
+        setup(cmdclass=self.cmdclass, ext_modules=self.ext_modules)
         
 _BACKEND = MyBuildMetaBackend()
 get_requires_for_build_wheel = _BACKEND.get_requires_for_build_wheel
@@ -134,3 +136,7 @@ get_requires_for_build_sdist = _BACKEND.get_requires_for_build_sdist
 prepare_metadata_for_build_wheel = _BACKEND.prepare_metadata_for_build_wheel
 build_wheel = _BACKEND.build_wheel
 build_sdist = _BACKEND.build_sdist
+
+if '__main__' == __name__:
+    build_ext = MyBuildExt()
+    build_ext.run(_BACKEND.ext_modules[0], *sys.argv[1:])

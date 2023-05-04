@@ -1,5 +1,14 @@
 #include "aufiMp4.h"
 
+//$! import butil
+//$! boxTypeConV = ('aART apID cnID covr dinf disk ilst mdia minf moov ownr purd soaa soar stbl stik'
+//$!                ' trak trkn udta \xA9ART \xA9alb \xA9day \xA9nam ----').split()
+//$! boxTypeV = [*boxTypeConV,
+//$!             *('dref esds free ftyp hdlr data mdat mdhd mean meta mp4a mvhd name skip smhd stco stsc'
+//$!               ' stsd stsz stts tkhd').split(),
+//$!             'url ']
+//$! boxTypeTrie = butil.trieFromDict({x:f'goto Box_{butil.ciden0(x)};' for x in sorted(boxTypeV)}, 'goto BoxNimp;')
+
 //-----------------------------------------------------------------------------------------------------------------------
 // AufiMp4ContainerStackItem
 //-----------------------------------------------------------------------------------------------------------------------
@@ -39,37 +48,52 @@ aufiMp4ParseSrc(AufiMp4ParseArgs *self)
 	BitId128 boxUuid;
 	size_t level;
 	
+	typedef union {
+		AufiMp4EsDescriptor esDescriptor;
+	} u;
+
 	unsigned int alternateGroup;
+	unsigned int avgBitrate;
 	unsigned int balance;
+	unsigned int bufferSizeDB;
+	unsigned int channelCount;
 	unsigned int chunkOffset;
 	unsigned int country;
 	uint64_t creationTime;
+	unsigned int dataReferenceIndex;
 	BitId32 dataType;
+	unsigned int dependsOnEsId;
 	uint64_t duration;
 	uint32_t entryCount;
 	unsigned int entrySize;
+	unsigned int esId;
 	unsigned int firstChunk;
+	unsigned int flagStreamPriority;
 	unsigned int flags;
 	unsigned int height;
 	BitId32 id32;
 	unsigned int language;
 	int layer;
+	unsigned int maxBitrate;
 	uint64_t modificationTime;
 	unsigned int nextTrackId;
+	unsigned int objectTypeIndication;
+	unsigned int ocrEsId;
 	unsigned int rate;
-	unsigned int timescale;
-	unsigned int trackId;
-	unsigned int version;
-	unsigned int volume;
-	unsigned int width;
-	unsigned int dataReferenceIndex;
-	unsigned int channelCount;
 	unsigned int sampleSize;
 	unsigned int sampleRate;
 	unsigned int sampleCount;
 	unsigned int sampleDelta;
 	unsigned int sampleDescriptionIndex;
 	unsigned int samplesPerChunk;
+	unsigned int streamType;
+	unsigned int timescale;
+	unsigned int trackId;
+	const uint8_t *url;
+	unsigned int urlZ;
+	unsigned int version;
+	unsigned int volume;
+	unsigned int width;
 	
 	XXH3_128bits_reset(&gAudHashState);
 	containerStack = containerStackA + AufiMp4ContainerStackZ;
@@ -88,7 +112,15 @@ aufiMp4ParseSrc(AufiMp4ParseArgs *self)
 
  BoxZInvalid:
 	AufiCb(self->mp4Cbs->parseE, boxA - self->p.src, AufiE_Mp4BoxZInvalid);
+	goto BoxNext;
+
+ BoxNimp:
+	AufiCb(self->mp4Cbs->boxNimp, boxA - self->p.src, level, boxZ, boxType, boxUuid);
+	AufiCb(self->mp4Cbs->boxHexdump, boxType, boxB, boxE);
 	//goto BoxNext;
+ Box_free:
+ Box_skip:
+ Box_mdat:
  BoxNext:
 	boxA = boxE;
  Box0:
@@ -126,471 +158,18 @@ aufiMp4ParseSrc(AufiMp4ParseArgs *self)
 	AufiCb(self->mp4Cbs->box, boxA - self->p.src, level, boxZ, boxType, boxUuid);
 	// boxB = box payload start
 
-	// type dispatch
-	switch(boxType.u8s[0]) {
-	case 'a':
-		switch(boxType.u8s[1]) {
-		case 'A':
-			switch(boxType.u8s[2]) {
-			case 'R':
-				switch(boxType.u8s[3]) {
-				case 'T':
-					goto Box_aART;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		case 'p':
-			switch(boxType.u8s[2]) {
-			case 'I':
-				switch(boxType.u8s[3]) {
-				case 'D':
-					goto Box_apID;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		}
-		goto BoxNext;
-	case 'c':
-		switch(boxType.u8s[1]) {
-		case 'n':
-			switch(boxType.u8s[2]) {
-			case 'I':
-				switch(boxType.u8s[3]) {
-				case 'D':
-					goto Box_cnID;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		case 'o':
-			switch(boxType.u8s[2]) {
-			case 'v':
-				switch(boxType.u8s[3]) {
-				case 'r':
-					goto Box_covr;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		}
-		goto BoxNext;
-	case 'd':
-		switch(boxType.u8s[1]) {
-		case 'a':
-			switch(boxType.u8s[2]) {
-			case 't':
-				switch(boxType.u8s[3]) {
-				case 'a':
-					goto Box_data;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		case 'i':
-			switch(boxType.u8s[2]) {
-			case 'n':
-				switch(boxType.u8s[3]) {
-				case 'f':
-					goto Box_dinf;
-				}
-				goto BoxNext;
-			case 's':
-				switch(boxType.u8s[3]) {
-				case 'k':
-					goto Box_disk;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		case 'r':
-			switch(boxType.u8s[2]) {
-			case 'e':
-				switch(boxType.u8s[3]) {
-				case 'f':
-					goto Box_dref;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		}
-		goto BoxNext;
-	case 'f':
-		switch(boxType.u8s[1]) {
-		case 't':
-			switch(boxType.u8s[2]) {
-			case 'y':
-				switch(boxType.u8s[3]) {
-				case 'p':
-					goto Box_ftyp;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		}
-		goto BoxNext;
-	case 'h':
-		switch(boxType.u8s[1]) {
-		case 'd':
-			switch(boxType.u8s[2]) {
-			case 'l':
-				switch(boxType.u8s[3]) {
-				case 'r':
-					goto Box_hdlr;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		}
-		goto BoxNext;
-	case 'i':
-		switch(boxType.u8s[1]) {
-		case 'l':
-			switch(boxType.u8s[2]) {
-			case 's':
-				switch(boxType.u8s[3]) {
-				case 't':
-					goto Box_ilst;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		}
-		goto BoxNext;
-	case 'm':
-		switch(boxType.u8s[1]) {
-		case 'd':
-			switch(boxType.u8s[2]) {
-			case 'h':
-				switch(boxType.u8s[3]) {
-				case 'd':
-					goto Box_mdhd;
-				}
-				goto BoxNext;
-			case 'i':
-				switch(boxType.u8s[3]) {
-				case 'a':
-					goto Box_mdia;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		case 'e':
-			switch(boxType.u8s[2]) {
-			case 'a':
-				switch(boxType.u8s[3]) {
-				case 'n':
-					goto Box_mean;
-				}
-				goto BoxNext;
-			case 't':
-				switch(boxType.u8s[3]) {
-				case 'a':
-					goto Box_meta;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		case 'i':
-			switch(boxType.u8s[2]) {
-			case 'n':
-				switch(boxType.u8s[3]) {
-				case 'f':
-					goto Box_minf;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		case 'o':
-			switch(boxType.u8s[2]) {
-			case 'o':
-				switch(boxType.u8s[3]) {
-				case 'v':
-					goto Box_moov;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		case 'p':
-			switch(boxType.u8s[2]) {
-			case '4':
-				switch(boxType.u8s[3]) {
-				case 'a':
-					goto Box_mp4a;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		case 'v':
-			switch(boxType.u8s[2]) {
-			case 'h':
-				switch(boxType.u8s[3]) {
-				case 'd':
-					goto Box_mvhd;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		}
-		goto BoxNext;
-	case 'n':
-		switch(boxType.u8s[1]) {
-		case 'a':
-			switch(boxType.u8s[2]) {
-			case 'm':
-				switch(boxType.u8s[3]) {
-				case 'e':
-					goto Box_name;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		}
-		goto BoxNext;
-	case 'o':
-		switch(boxType.u8s[1]) {
-		case 'w':
-			switch(boxType.u8s[2]) {
-			case 'n':
-				switch(boxType.u8s[3]) {
-				case 'r':
-					goto Box_ownr;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		}
-		goto BoxNext;
-	case 'p':
-		switch(boxType.u8s[1]) {
-		case 'u':
-			switch(boxType.u8s[2]) {
-			case 'r':
-				switch(boxType.u8s[3]) {
-				case 'd':
-					goto Box_purd;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		}
-		goto BoxNext;
-	case 's':
-		switch(boxType.u8s[1]) {
-		case 'm':
-			switch(boxType.u8s[2]) {
-			case 'h':
-				switch(boxType.u8s[3]) {
-				case 'd':
-					goto Box_smhd;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		case 'o':
-			switch(boxType.u8s[2]) {
-			case 'a':
-				switch(boxType.u8s[3]) {
-				case 'a':
-					goto Box_soaa;
-				case 'r':
-					goto Box_soar;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		case 't':
-			switch(boxType.u8s[2]) {
-			case 'b':
-				switch(boxType.u8s[3]) {
-				case 'l':
-					goto Box_stbl;
-				}
-				goto BoxNext;
-			case 'c':
-				switch(boxType.u8s[3]) {
-				case 'o':
-					goto Box_stco;
-				}
-				goto BoxNext;
-			case 'i':
-				switch(boxType.u8s[3]) {
-				case 'k':
-					goto Box_stik;
-				}
-				goto BoxNext;
-			case 's':
-				switch(boxType.u8s[3]) {
-				case 'c':
-					goto Box_stsc;
-				case 'd':
-					goto Box_stsd;
-				case 'z':
-					goto Box_stsz;
-				}
-				goto BoxNext;
-			case 't':
-				switch(boxType.u8s[3]) {
-				case 's':
-					goto Box_stts;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		}
-		goto BoxNext;
-	case 't':
-		switch(boxType.u8s[1]) {
-		case 'r':
-			switch(boxType.u8s[2]) {
-			case 'a':
-				switch(boxType.u8s[3]) {
-				case 'k':
-					goto Box_trak;
-				}
-				goto BoxNext;
-			case 'k':
-				switch(boxType.u8s[3]) {
-				case 'n':
-					goto Box_trkn;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		case 'k':
-			switch(boxType.u8s[2]) {
-			case 'h':
-				switch(boxType.u8s[3]) {
-				case 'd':
-					goto Box_tkhd;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		}
-		goto BoxNext;
-	case 'u':
-		switch(boxType.u8s[1]) {
-		case 'd':
-			switch(boxType.u8s[2]) {
-			case 't':
-				switch(boxType.u8s[3]) {
-				case 'a':
-					goto Box_udta;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		case 'r':
-			switch(boxType.u8s[2]) {
-			case 'l':
-				switch(boxType.u8s[3]) {
-				case ' ':
-					goto Box_url_;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		}
-		goto BoxNext;
-	case 0xA9:
-		switch(boxType.u8s[1]) {
-		case 'A':
-			switch(boxType.u8s[2]) {
-			case 'R':
-				switch(boxType.u8s[3]) {
-				case 'T':
-					goto Box__ART;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		case 'a':
-			switch(boxType.u8s[2]) {
-			case 'l':
-				switch(boxType.u8s[3]) {
-				case 'b':
-					goto Box__alb;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		case 'd':
-			switch(boxType.u8s[2]) {
-			case 'a':
-				switch(boxType.u8s[3]) {
-				case 'y':
-					goto Box__day;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		case 'n':
-			switch(boxType.u8s[2]) {
-			case 'a':
-				switch(boxType.u8s[3]) {
-				case 'm':
-					goto Box__nam;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		}
-		goto BoxNext;
-	case '-':
-		switch(boxType.u8s[1]) {
-		case '-':
-			switch(boxType.u8s[2]) {
-			case '-':
-				switch(boxType.u8s[3]) {
-				case '-':
-					goto Box__dashdashdashdash;
-				}
-				goto BoxNext;
-			}
-			goto BoxNext;
-		}
-		goto BoxNext;
-	}
-	goto BoxNext;
+	//$! butil.trieSwitchCode(_acc, 'boxType.u8s', boxTypeTrie, 0, 4)
 
-	//-------------------------------------------------------------------------------------------------------------------
-	// boxHexdump
-
-	AufiCb(self->mp4Cbs->boxHexdump, boxType, boxB, boxE);
-	goto BoxNext;
-	
 	//-------------------------------------------------------------------------------------------------------------------
 	// Container
 
- Box_aART:
- Box_apID:
- Box_cnID:
- Box_covr:
- Box_dinf:
- Box_disk:
+	//$! for x in boxTypeConV:
+ Box_`butil.ciden0(x)`:
+	//$B     pass
  Box_drefEntrys:
- Box_ilst:
- Box_mdia:
  Box_metaEntrys:
- Box_minf:
- Box_moov:
- Box_ownr:
- Box_purd:
- Box_soaa:
- Box_soar:
- Box_stbl:
  Box_stsdEntrys:
- Box_stik:
- Box_trak:
- Box_trkn:
- Box_udta:
- Box__ART:
- Box__alb:
- Box__day:
- Box__nam:
- Box__dashdashdashdash:
+ Box_mp4aEntrys:
 	// ContainerPush:
 	if((containerStack -= 1) == containerStackA) goto FinContainerStackFull;
 	containerStack[-1].gotoFin = &&ContainerFin;
@@ -636,6 +215,48 @@ aufiMp4ParseSrc(AufiMp4ParseArgs *self)
 	BitId32_32(id32, boxB - 4);
 	AufiCb(self->mp4Cbs->ftypCompat, id32);
 	goto Box_ftypCompat;
+
+	//-------------------------------------------------------------------------------------------------------------------
+	// esds
+
+ Box_esds:
+	AufiCb(self->mp4Cbs->boxHexdump, boxType, boxB, boxE);
+	if((boxB += 7) > boxE) goto BoxZInvalid;
+	version = BitU8M(boxB - 7);
+	flags = BitU24M(boxB - 6);
+	// ES_Descriptor 14496-1
+	u.esDescriptor.esId = BitU16M(boxB - 3);
+	u.esDescriptor.flagStreamPriority = boxB[-1];
+	u.esDescriptor.dependsOnEsId = 0;
+	u.esDescriptor.url = NULL;
+	u.esDescriptor.urlZ = 0;
+	u.esDescriptor.ocrEsId = 0;
+	if(0x80 & u.esDescriptor.flagStreamPriority) { // streamDependenceFlag
+		if((boxB += 2) > boxE) goto BoxZInvalid;
+		u.esDescriptor.dependsOnEsId = BitU16M(boxB - 2);
+	}
+	if(0x40 & u.esDescriptor.flagStreamPriority) { // URL_Flag
+		if((boxB += 1) > boxE) goto BoxZInvalid;
+		u.esDescriptor.urlZ = boxB[-1];
+		u.esDescriptor.url = boxB;
+		if((boxB + urlZ) > boxE) goto BoxZInvalid;
+	}
+	if(0x20 & u.esDescriptor.flagStreamPriority) { // OCRstreamFlag
+		if((boxB += 2) > boxE) goto BoxZInvalid;
+		u.esDescriptor.ocrEsId = BitU16M(boxB - 2);
+	} 
+	AufiCb(self->mp4Cbs->esds, version, flags, &u.esDescriptor);
+
+	// DecoderConfigDescriptor 14496-1
+	if((boxB += 13) > boxE) goto BoxZInvalid;
+	objectTypeIndication = boxB[-13];
+	streamType = boxB[-12]; // includes upStream flag
+	bufferSizeDB = BitU24M(boxB - 11);
+	maxBitrate = BitU32M(boxB - 8);
+	avgBitrate = BitU32M(boxB - 4);
+	//todo DecoderSpecificInfo decSpecificInfo[0 .. 1];
+	//todo profileLevelIndicationIndexDescriptor profileLevelIndicationIndexDescr[0 .. 255]
+	goto BoxNext;
 
 	//-------------------------------------------------------------------------------------------------------------------
 	// hdlr
@@ -717,7 +338,7 @@ aufiMp4ParseSrc(AufiMp4ParseArgs *self)
 	sampleSize = BitU16M(boxB - 10);
 	sampleRate = BitU32M(boxB - 4);
 	AufiCb(self->mp4Cbs->mp4a, dataReferenceIndex, channelCount, sampleSize, sampleRate);
-	goto BoxNext;
+	goto Box_mp4aEntrys;
 
 	//-------------------------------------------------------------------------------------------------------------------
 	// mvhd
@@ -904,7 +525,7 @@ aufiMp4ParseSrc(AufiMp4ParseArgs *self)
 	//-------------------------------------------------------------------------------------------------------------------
 	// url_
 
- Box_url_:
+ Box_url20:
 	if((boxB += 4) > boxE) goto BoxZInvalid;
 	version = BitU8M(boxB - 4);
 	flags = BitU24M(boxB - 3);

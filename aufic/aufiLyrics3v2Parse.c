@@ -4,11 +4,9 @@
 // Parse
 //-----------------------------------------------------------------------------------------------------------------------
 
-int
-aufiLyrics3v2ParseSrc(AufiLyrics3v2ParseArgs *self)
-{
-	uint8_t *gSrcE = self->p.src + self->p.srcZ;
-	uint8_t *gSrc = self->p.src;
+int aufiLyrics3v2ParseSrc(AufiLyrics3v2Parse *self, AufiParseArgs *args) {
+	uint8_t *gSrcE = args->src + args->srcZ;
+	uint8_t *gSrc = args->src;
 	const uint8_t *gChunkE;
 	size_t gChunkZ;
 
@@ -62,15 +60,15 @@ aufiLyrics3v2ParseSrc(AufiLyrics3v2ParseArgs *self)
 
  `go`FootFound:
 	gChunkZ = gChunkE - gSrc;
-	AufiCb(`cb`size, gSrc - self->p.src, `lo`size);
+	AufiCb(`cb`size, gSrc - args->src, `lo`size);
 	goto `go`FinChunkOk;
 
 	//------------------------------------------------------------------------------------------------------------------
 	// error
 
- `go`Incomplete: AufiCb(`cb`parseE, gSrc - self->p.src, AufiE_Lyrics3v2Incomplete); goto `go`FinChunkInvalid;
+ `go`Incomplete: AufiCb(`cb`parseE, gSrc - args->src, AufiE_Lyrics3v2Incomplete); goto `go`FinChunkInvalid;
 	//$B     pass
-	//$! body(_acc, 'self->lyrics3v2Cbs->', 'local.', '')
+	//$! body(_acc, 'self->cbs.', 'local.', '')
 
  FinChunkOk: return 0;
  FinChunkInvalid: return AufiE_Lyrics3v2;
